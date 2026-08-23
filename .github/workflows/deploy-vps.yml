@@ -1,0 +1,152 @@
+name: Deploy production API
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/insightiq-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - "packages/db/**"
+      - "package.json"
+      - "package-lock.json"
+      - "turbo.json"
+      - "docker-compose.yml"
+      - "nginx/**"
+      - "apps/api/Dockerfile"
+      - "apps/api/docker-entrypoint.sh"
+      - ".github/workflows/deploy-vps.yml"
+
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "packages/db/**"
+      - "package.json"
+      - "package-lock.json"
+      - "turbo.json"
+      - "docker-compose.yml"
+      - "nginx/**"
+      - "apps/api/Dockerfile"
+      - "apps/api/docker-entrypoint.sh"
+      - ".github/workflows/deploy-vps.yml"
+
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://prisma:prisma@localhost:5432/prisma?schema=public
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24.14.0"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify workspaces
+        run: |
+          npm run db:generate
+          npm run check-types
+          npm run build
+
+  build-image:
+    needs: verify
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      api_image: ${{ steps.image.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set image name
+        id: image
+        run: echo "name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.image.outputs.name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [verify, build-image]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout deployment configuration
+        uses: actions/checkout@v5
+
+      - name: Upload deployment configuration
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "docker-compose.yml,nginx/templates"
+          target: insightiq
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          PRODUCTION_ENV: ${{ secrets.PRODUCTION_ENV_FILE }}
+          API_IMAGE: ${{ needs.build-image.outputs.api_image }}
+          GHCR_USERNAME: ${{ github.repository_owner }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script_stop: true
+          envs: PRODUCTION_ENV,API_IMAGE,GHCR_USERNAME,GHCR_READ_TOKEN
+          script: |
+            set -e
+
+            cd "$HOME/insightiq"
+            printf '%s\nAPI_IMAGE=%s\n' "$PRODUCTION_ENV" "$API_IMAGE" > .env
+            test -f nginx/certs/origin.crt
+            test -f nginx/certs/origin.key
+
+            if [ -n "$GHCR_READ_TOKEN" ]; then
+              printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+            fi
+            docker compose pull postgres api nginx
+            docker compose up -d --no-build postgres api
+            docker compose up -d --no-build --force-recreate nginx
+            docker image prune -f
+
+            sleep 5
+            test -n "$(docker compose ps -q --status running postgres)"
+            test -n "$(docker compose ps -q --status running api)"
+            test -n "$(docker compose ps -q --status running nginx)"
+
+            echo "Production API deployment complete"

@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Turborepo
+.turbo/
+packages/db/generated/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.vercel/
+.open-next/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/editor files
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Generated caches
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+
+# Cloudflare Origin Certificates (keep the directory placeholder only)
+nginx/certs/*
+!nginx/certs/.gitkeep

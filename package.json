@@ -1,0 +1,21 @@
+{
+  "name": "insightiq",
+  "private": true,
+  "packageManager": "npm@12.0.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "db:generate": "npm run db:generate --workspace=@insightiq/db",
+    "db:migrate": "npm run db:migrate --workspace=@insightiq/db",
+    "db:migrate:dev": "npm run db:migrate:dev --workspace=@insightiq/db"
+  },
+  "dependencies": {
+    "turbo": "^2.10.11"
+  }
+}

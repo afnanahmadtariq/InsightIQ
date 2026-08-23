@@ -1,0 +1,9 @@
+.git
+.github
+node_modules
+.turbo
+apps/web
+nginx
+packages/db/generated
+*.log
+.env

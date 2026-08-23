@@ -1,0 +1,24 @@
+{
+  "name": "@insightiq/db",
+  "private": true,
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "build": "prisma generate",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/config": "^7.9.1",
+    "@prisma/client": "^7.0.0",
+    "dotenv": "^16.5.0",
+    "pg": "^8.16.0",
+    "prisma": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.0",
+    "typescript": "^5.8.0"
+  }
+}
