@@ -2,15 +2,8 @@ name: Deploy Cloudflare (Frontend)
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "apps/web/**"
-      - "package.json"
-      - "package-lock.json"
-      - "turbo.json"
-      - "apps/web/wrangler.jsonc"
-      - ".github/workflows/deploy-cloudflare.yml"
+    tags:
+      - "v*"
 
   pull_request:
     paths:
@@ -20,8 +13,6 @@ on:
       - "turbo.json"
       - "apps/web/wrangler.jsonc"
       - ".github/workflows/deploy-cloudflare.yml"
-
-  workflow_dispatch:
 
 jobs:
   verify:

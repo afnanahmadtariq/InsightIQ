@@ -10,18 +10,8 @@ env:
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "apps/api/**"
-      - "packages/db/**"
-      - "package.json"
-      - "package-lock.json"
-      - "turbo.json"
-      - "docker-compose.yml"
-      - "nginx/**"
-      - "apps/api/Dockerfile"
-      - "apps/api/docker-entrypoint.sh"
-      - ".github/workflows/deploy-vps.yml"
+    tags:
+      - "v*"
 
   pull_request:
     paths:
@@ -35,8 +25,6 @@ on:
       - "apps/api/Dockerfile"
       - "apps/api/docker-entrypoint.sh"
       - ".github/workflows/deploy-vps.yml"
-
-  workflow_dispatch:
 
 jobs:
   verify:
