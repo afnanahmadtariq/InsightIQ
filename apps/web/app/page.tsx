@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import styles from './page.module.css'
 
@@ -21,56 +22,71 @@ export default function Home() {
     <main className={styles.page}>
       <section className={styles.panel}>
         <header className={styles.header}>
-          <div className={styles.brandMark}>IQ<span>·</span></div>
-          <p className={styles.brandName}>InsightIQ</p>
+          <div className={styles.brand}>
+            <Image src="/insightiq-logo.png" alt="InsightIQ" width={44} height={44} priority />
+            <span>InsightIQ</span>
+          </div>
+          <p className={styles.headerLabel}>Intelligence workspace</p>
         </header>
 
-        <div className={styles.hero}>
-          <p className={styles.eyebrow}>Intelligence, made useful</p>
-          <h1>Find the signal<br /><em>in the noise.</em></h1>
-          <p className={styles.description}>InsightIQ brings your most important information into focus, so every decision starts with a clearer picture.</p>
-          <div className={styles.heroMeta}><span className={styles.liveDot} /> Intelligence platform <span className={styles.metaDivider} /> Built for momentum</div>
-        </div>
+        <section className={styles.hero}>
+          <div>
+            <p className={styles.eyebrow}>Decisions, made clearer</p>
+            <h1>Turn complexity into<br /><em>your next best move.</em></h1>
+            <p className={styles.description}>InsightIQ helps teams surface what matters, connect the dots, and move forward with confidence.</p>
+            <button className={styles.primaryButton} type="button">Explore insights <span>→</span></button>
+          </div>
+
+          <div className={styles.preview} aria-label="Insight preview">
+            <div className={styles.previewTop}><span>Weekly signal</span><b>Updated now</b></div>
+            <div className={styles.metric}><strong>+24.8%</strong><span>Meaningful momentum</span></div>
+            <div className={styles.chart} aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /></div>
+            <div className={styles.previewFooter}><span className={styles.avatar}>IQ</span><span>Insight confidence <b>High</b></span></div>
+          </div>
+        </section>
 
         <section className={styles.designSystem} aria-labelledby="design-system-title">
           <div className={styles.systemIntro}>
-            <p className={styles.eyebrow}>The InsightIQ system</p>
-            <h2 id="design-system-title">Clarity with a point of view.</h2>
+            <div>
+              <p className={styles.eyebrow}>InsightIQ design language</p>
+              <h2 id="design-system-title">Bright, focused, and built for trust.</h2>
+            </div>
+            <p>Simple surfaces keep attention on the signal. Blue provides depth; crisp whitespace creates room to think.</p>
           </div>
 
           <div className={styles.systemGrid}>
             <article className={styles.systemCard}>
-              <h3>Signal colours</h3>
+              <h3>Signal palette</h3>
               <div className={styles.swatches}>
-                <span className={styles.ink}><i />Navy</span>
-                <span className={styles.blue}><i />Signal</span>
-                <span className={styles.warm}><i />Action</span>
-                <span className={styles.mist}><i />Cloud</span>
+                <span className={styles.ink}><i />Deep blue</span>
+                <span className={styles.blue}><i />Insight blue</span>
+                <span className={styles.sky}><i />Sky</span>
+                <span className={styles.mist}><i />Canvas</span>
               </div>
             </article>
 
             <article className={styles.systemCard}>
-              <h3>Type</h3>
-              <p className={styles.typeSample}>Make the next move obvious.</p>
-              <span className={styles.token}>DM Sans · 800 / 500</span>
+              <h3>Typography</h3>
+              <p className={styles.typeSample}>The next move, made obvious.</p>
+              <span className={styles.token}>Outfit · 300 / 500 / 700</span>
             </article>
 
             <article className={styles.systemCard}>
-              <h3>Momentum</h3>
+              <h3>Interaction</h3>
               <div className={styles.componentRow}>
-                <span className={styles.buttonSample}>Explore insight</span>
+                <span className={styles.buttonSample}>View insight <b>→</b></span>
                 <span className={styles.statusSample}><i /> Live</span>
               </div>
-              <span className={styles.token}>18px cards · 12px controls</span>
+              <span className={styles.token}>16px radius · quiet shadows</span>
             </article>
           </div>
         </section>
 
         <p className={`${styles.status} ${styles[status]}`}>
           <span aria-hidden="true" />
-          {status === 'checking' && 'Checking backend connection…'}
-          {status === 'connected' && 'Backend connected'}
-          {status === 'unavailable' && 'Backend unavailable'}
+          {status === 'checking' && 'Checking platform status…'}
+          {status === 'connected' && 'InsightIQ platform connected'}
+          {status === 'unavailable' && 'Platform temporarily unavailable'}
         </p>
       </section>
     </main>
