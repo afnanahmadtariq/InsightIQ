@@ -1,6 +1,15 @@
 # Architecture Discovery Questions
 
-Status: open
+Status: round 1 partly resolved
+
+## Confirmed on 2026-08-24
+
+- Primary audience: salespeople responsible for closing deals, initially B2B SaaS account executives with agency SDRs as an adjacent segment.
+- Intake: flexible and incomplete; InsightIQ begins with whatever identifiers the user supplies and expands them through permitted OSINT.
+- Provenance: citations and retrieval timestamps are always recorded. The interface may collapse them until the user enables evidence details.
+- Acquisition: begin with operationally simple methods, but create differentiated intelligence beyond merely restating easy-to-find public data.
+- Automation: data retrieval and decision support come first. External actions such as sending and CRM updates remain a later goal.
+- Economics: InsightIQ should propose initial latency, cost, and plan targets.
 
 These questions are ordered by architectural impact. Decisions should be recorded as answers arrive.
 
@@ -23,6 +32,14 @@ These questions are ordered by architectural impact. Decisions should be recorde
 5. When is existing research stale enough to refresh, and should refreshes be manual or scheduled?
 6. Are outreach templates fixed by segment or configurable per workspace?
 
+## Recommended answers awaiting confirmation
+
+- Primary job: prepare a cited deal brief before a prospect conversation; cold-outreach drafting consumes that same intelligence afterward.
+- Primary subject: an account plus the people and opportunity context attached to it. A scheduled meeting is a trigger, not the canonical data object.
+- Standard latency: first results in 30–60 seconds and completion in 2–5 minutes.
+- Standard direct-cost target: $0.35 or less at volume, with a temporary MVP hard cap of $0.75.
+- Plans: Solo $49/40 credits, Pro $129/150 credits, Team $299/400 credits and three seats; deep research consumes three credits.
+
 ## Round 3: scale and operations
 
 1. Expected research runs per day at launch, after six months, and at the first enterprise customer?
@@ -30,4 +47,3 @@ These questions are ordered by architectural impact. Decisions should be recorde
 3. Required authentication and enterprise controls: password/social login, SSO, SCIM, data residency, customer-managed keys?
 4. What failure behavior is acceptable when one source is slow, blocked, expensive, or contradictory?
 5. Which metrics define a successful brief: time saved, user rating, factual precision, reply rate, meeting conversion, or revenue influence?
-
