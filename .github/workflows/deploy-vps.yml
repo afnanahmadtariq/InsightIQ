@@ -128,8 +128,8 @@ jobs:
               printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             fi
             docker compose pull postgres api nginx
-            docker compose up -d --no-build postgres api
-            docker compose up -d --no-build --force-recreate nginx
+            docker compose up -d --no-build --remove-orphans postgres api
+            docker compose up -d --no-build --force-recreate --remove-orphans nginx
             docker image prune -f
 
             sleep 5
