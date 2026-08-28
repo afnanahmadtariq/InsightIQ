@@ -8,6 +8,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "build": "prisma generate && tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist generated",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
