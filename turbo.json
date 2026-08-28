@@ -6,6 +6,9 @@
       "env": ["DATABASE_URL"],
       "outputs": ["dist/**", "build/**", "generated/**", ".next/**", ".nuxt/**", ".output/**"]
     },
+    "clean": {
+      "cache": false
+    },
     "check-types": {
       "dependsOn": ["^check-types"]
     },

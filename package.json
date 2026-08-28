@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
+    "clean": "turbo run clean",
     "db:generate": "npm run db:generate --workspace=@insightiq/db",
     "db:migrate": "npm run db:migrate --workspace=@insightiq/db",
     "db:migrate:dev": "npm run db:migrate:dev --workspace=@insightiq/db"

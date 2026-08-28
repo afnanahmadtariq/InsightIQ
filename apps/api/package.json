@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
+    "clean": "rm -rf dist",
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "check-types": "tsc --noEmit"
