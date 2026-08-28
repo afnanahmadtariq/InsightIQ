@@ -1,6 +1,6 @@
 # ADR 0001: Begin with a modular monolith and asynchronous workers
 
-- Status: proposed
+- Status: superseded by [ADR 0005](./0005-event-driven-microservices-pivot.md)
 - Date: 2026-08-23
 
 ## Context

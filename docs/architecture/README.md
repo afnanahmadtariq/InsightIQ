@@ -2,6 +2,14 @@
 
 Status: discovery — product direction confirmed, workflow under validation
 
+> **Stack update (2026-08-28):** the system shape and repository boundaries below describe the
+> original modular-monolith discovery proposal ([ADR 0001](./decisions/0001-modular-monolith-and-workers.md)).
+> The hackathon build instead follows an event-driven microservices architecture — see
+> [ADR 0005](./decisions/0005-event-driven-microservices-pivot.md) and the
+> [hackathon submission](../submission/hackathon-submission.md) for the current source of truth on
+> services, messaging, and infrastructure. The product principles, MVP slice, domain model, and
+> evidence-first rules on this page are unaffected and still apply.
+
 InsightIQ is planned as a workflow-focused sales intelligence product. A user supplies a prospect or account, InsightIQ gathers permitted public and connected-source evidence, turns that evidence into cited signals, and produces an actionable brief and outreach suggestions.
 
 ## Architecture principles
