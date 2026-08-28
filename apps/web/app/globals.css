@@ -1,0 +1,102 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+
+  /* Core brand — carried forward from the original InsightIQ palette */
+  --color-ink-950: #060f22;
+  --color-ink-900: #0a1830;
+  --color-ink-800: #0f2249;
+  --color-ink-700: #12346f;
+  --color-ink-600: #123d8e;
+
+  --color-brand-700: #16429b;
+  --color-brand-600: #1768c7;
+  --color-brand-500: #178fe7;
+  --color-brand-400: #1c9eec;
+  --color-brand-300: #49bcf7;
+
+  --color-mist-100: #f8fbff;
+  --color-mist-200: #eef6ff;
+  --color-mist-300: #edf8ff;
+  --color-line-200: #e7eef8;
+  --color-line-300: #dfebf8;
+  --color-line-400: #dceafa;
+
+  --color-muted-500: #7185a5;
+  --color-muted-400: #7890b5;
+  --color-muted-300: #8192ad;
+
+  --color-success-500: #1aa66d;
+  --color-warning-500: #d69a2d;
+  --color-danger-500: #df5c67;
+
+  /* Persona accents — one per demo user segment */
+  --color-persona-b2b: #1768c7;
+  --color-persona-b2c: #c79a44;
+  --color-persona-solo: #7c6fe0;
+
+  --radius-card: 20px;
+  --radius-control: 12px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-display);
+  background: var(--color-ink-950);
+  color: var(--color-mist-100);
+}
+
+::selection {
+  background: var(--color-brand-400);
+  color: #fff;
+}
+
+/* Thin, quiet scrollbars for the dashboard's dense panels */
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+  border-radius: 999px;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-14px); }
+}
+.animate-float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand-400) 45%, transparent); }
+  100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--color-brand-400) 0%, transparent); }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+
+@keyframes grid-pan {
+  from { background-position: 0 0; }
+  to { background-position: 120px 120px; }
+}
+.bg-grid-pan {
+  background-image:
+    linear-gradient(color-mix(in srgb, #ffffff 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, #ffffff 6%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: grid-pan 12s linear infinite;
+}
