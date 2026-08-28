@@ -17,5 +17,14 @@
   },
   "dependencies": {
     "turbo": "^2.10.11"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.0": true,
+    "prisma@7.10.0": true,
+    "esbuild@0.25.4": true,
+    "esbuild@0.28.1": true,
+    "sharp@0.35.2": true,
+    "sharp@0.35.4": true,
+    "workerd@1.20260820.1": true
   }
 }

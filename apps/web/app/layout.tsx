@@ -1,8 +1,23 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'InsightIQ — Turn data into direction',
-  description: 'InsightIQ turns complex information into clear, actionable direction.',
+  title: 'InsightIQ — Evidence-first sales intelligence',
+  description: 'Research prospects, uncover timely sales signals, and generate tailored Deal Briefs with a citation behind every claim.',
+  icons: {
+    icon: '/insightiq-logo.svg',
+    shortcut: '/insightiq-logo.svg',
+    apple: '/insightiq-logo.svg',
+  },
+  openGraph: {
+    title: 'InsightIQ — Know the prospect. Earn the conversation.',
+    description: 'Evidence-first AI sales intelligence for outreach, meetings, and every high-value conversation.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'InsightIQ — Know the prospect. Earn the conversation.',
+    description: 'Evidence-first AI sales intelligence for outreach, meetings, and every high-value conversation.',
+  },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -12,3 +12,10 @@ model User {
   email     String   @unique
   createdAt DateTime @default(now())
 }
+
+model WaitlistSignup {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
