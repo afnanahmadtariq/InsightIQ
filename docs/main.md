@@ -15,6 +15,7 @@ This is the consolidated documentation index for InsightIQ. The source documents
 9. [ADR 0004: Derived OSINT Differentiation](#9-adr-0004-derived-osint-differentiation)
 10. [ADR 0005: Event-Driven Microservices Pivot](#10-adr-0005-event-driven-microservices-pivot)
 11. [Hackathon Submission](#11-hackathon-submission)
+12. [Implementation Plans](#12-implementation-plans)
 
 ---
 
@@ -606,3 +607,23 @@ In summary: InsightIQ is an "Evidence-First" AI Sales Intelligence Agent for B2B
 B2C, and solopreneur sellers, built as the event-driven microservices architecture described in
 ADR 0005 above, with a delivery plan running Aug 28 – Sept 4, 2026 and a live demo at
 https://insightiq.zerotools.online/.
+
+---
+
+## 12. Implementation Plans
+
+_Source: [architecture/implementation/](./architecture/implementation/)_
+
+ADR 0005 records *what* was decided; these documents record *how* each piece gets built —
+responsibilities, REST/Kafka interfaces, data ownership, tech stack, local dev setup, build order,
+and testing plan for each service. They are kept as standalone files rather than duplicated in full
+here, since together they run long; read them directly:
+
+- [Implementation Plans index](./architecture/implementation/README.md) — shared conventions
+  (event envelope, idempotency, one-Postgres-many-owners) and the overall build order.
+- [Auth & User Management Service (Node.js)](./architecture/implementation/auth-user-service.md)
+- [Pricing & Billing Service (Node.js)](./architecture/implementation/billing-service.md)
+- [OSINT Worker Nodes (Go)](./architecture/implementation/osint-workers.md)
+- [AI & Synthesis Service (Python)](./architecture/implementation/ai-synthesis-service.md)
+- [Kafka (messaging backbone)](./architecture/implementation/kafka-messaging.md)
+- [Nginx (load balancer / reverse proxy)](./architecture/implementation/nginx-load-balancer.md)
