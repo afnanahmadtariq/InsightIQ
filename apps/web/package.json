@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "clean": "rm -rf .next .open-next",
     "start": "next start",
     "lint": "next lint",
     "check-types": "tsc --noEmit",
