@@ -30,10 +30,17 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-InsightIQ <onboarding@resend.dev>}
       RESEND_REPLY_TO_EMAIL: ${RESEND_REPLY_TO_EMAIL:-}
+      API_RUN_DB_SETUP_ON_STARTUP: ${API_RUN_DB_SETUP_ON_STARTUP:-true}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-insightiq}?schema=public
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   nginx:
     image: nginx:1.27-alpine

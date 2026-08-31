@@ -10,15 +10,18 @@
       "cache": false
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["^check-types"],
+      "env": ["DATABASE_URL"]
     },
     "lint": {
       "dependsOn": ["^lint"]
     },
     "test": {
-      "dependsOn": ["build", "^build"]
+      "dependsOn": ["build", "^build"],
+      "env": ["DATABASE_URL"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     }

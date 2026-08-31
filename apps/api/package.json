@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "start": "node dist/main.js",
     "test": "npm run build && node --test test/*.test.cjs",
     "lint": "eslint \"{src,test}/**/*.ts\"",

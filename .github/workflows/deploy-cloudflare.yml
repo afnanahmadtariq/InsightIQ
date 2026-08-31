@@ -30,10 +30,17 @@ jobs:
       - name: Install dependencies (workspace)
         run: npm ci
 
-      - name: Verify frontend
-        run: |
-          npm run check-types --workspace=@insightiq/web
-          npm run build --workspace=@insightiq/web
+      - name: Lint frontend
+        run: npm run lint --workspace=@insightiq/web
+
+      - name: Check frontend types
+        run: npm run check-types --workspace=@insightiq/web
+
+      - name: Run frontend tests when present
+        run: npm run test --if-present --workspace=@insightiq/web
+
+      - name: Build frontend
+        run: npm run build --workspace=@insightiq/web
 
   deploy:
     needs: verify

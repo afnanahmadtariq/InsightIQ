@@ -4,9 +4,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "clean": "rm -rf .next .open-next",
+    "clean": "rimraf .next .open-next .wrangler",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "check-types": "tsc --noEmit",
     "cf:build": "opennextjs-cloudflare build",
     "cf:deploy": "opennextjs-cloudflare deploy"

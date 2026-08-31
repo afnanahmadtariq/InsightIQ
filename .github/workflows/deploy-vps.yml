@@ -44,11 +44,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify workspaces
-        run: |
-          npm run db:generate
-          npm run check-types
-          npm run build
+      - name: Generate database client
+        run: npm run db:generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check types
+        run: npm run check-types
+
+      - name: Build API
+        run: npx turbo run build --filter=@insightiq/api
+
+      - name: Run API tests
+        working-directory: apps/api
+        run: node --test test/*.test.cjs
 
   build-image:
     needs: verify
@@ -120,21 +130,22 @@ jobs:
             set -e
 
             cd "$HOME/insightiq"
-            printf '%s\nAPI_IMAGE=%s\n' "$PRODUCTION_ENV" "$API_IMAGE" > .env
+            printf '%s\nAPI_IMAGE=%s\nAPI_RUN_DB_SETUP_ON_STARTUP=false\n' "$PRODUCTION_ENV" "$API_IMAGE" > .env
             test -f nginx/certs/origin.crt
             test -f nginx/certs/origin.key
 
             if [ -n "$GHCR_READ_TOKEN" ]; then
               printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             fi
-            docker compose pull postgres api nginx
-            docker compose up -d --no-build --remove-orphans postgres api
-            docker compose up -d --no-build --force-recreate --remove-orphans nginx
-            docker image prune -f
+            docker compose pull api
+            docker compose up -d --no-build --remove-orphans --wait --wait-timeout 120 postgres
+            docker compose run --rm --no-deps api migrate
+            docker compose up -d --no-build --no-deps --wait --wait-timeout 60 api
+            docker compose up -d --no-build --force-recreate --remove-orphans --wait --wait-timeout 60 nginx
 
-            sleep 5
             test -n "$(docker compose ps -q --status running postgres)"
             test -n "$(docker compose ps -q --status running api)"
             test -n "$(docker compose ps -q --status running nginx)"
+            docker image prune -af
 
             echo "Production API deployment complete"
