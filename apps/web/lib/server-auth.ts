@@ -6,7 +6,7 @@ import { cache } from 'react'
 import type { AccountContext } from './account-context'
 import { API_URL } from './api-client'
 
-async function authenticatedFetch<T>(path: string): Promise<T | null> {
+export async function authenticatedFetch<T>(path: string): Promise<T | null> {
   const requestHeaders = await headers()
   const response = await fetch(`${API_URL}${path}`, {
     cache: 'no-store',

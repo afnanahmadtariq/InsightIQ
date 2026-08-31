@@ -8,6 +8,7 @@ import { resolve } from 'node:path'
 import { auth } from './auth/auth'
 import { InsightIQAuthModule } from './auth/insightiq-auth.module'
 import { validateEnvironment } from './config/env.validation'
+import { ResearchModule } from './research/research.module'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -59,6 +60,7 @@ class WaitlistController {
       },
     }),
     InsightIQAuthModule,
+    ResearchModule,
   ],
   controllers: [HealthController, WaitlistController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
