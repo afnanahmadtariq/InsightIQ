@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@insightiq/db'
 import { AccountContextService, type AuthenticatedSession } from '../auth/account-context.service'
 import type { CreateResearchRunDto } from './dto/create-research-run.dto'
@@ -91,5 +91,31 @@ export class ResearchRunsService {
     })
     if (!run) throw new NotFoundException('Research run not found')
     return run
+  }
+
+  async retry(session: AuthenticatedSession, id: string) {
+    const membership = await this.accounts.assertActiveWorkspace(session)
+    const organizationId = membership.organizationId
+    const retried = await db.researchRun.updateMany({
+      where: { id, organizationId, status: 'failed' },
+      data: {
+        status: 'queued',
+        startedAt: null,
+        completedAt: null,
+        errorMessage: null,
+      },
+    })
+    if (retried.count !== 1) {
+      const run = await db.researchRun.findUnique({
+        where: { id_organizationId: { id, organizationId } },
+        select: { status: true },
+      })
+      if (!run) throw new NotFoundException('Research run not found')
+      throw new ConflictException(`Research run cannot be retried while ${run.status}`)
+    }
+    return db.researchRun.findUnique({
+      where: { id_organizationId: { id, organizationId } },
+      include: { prospect: true, offer: true },
+    })
   }
 }

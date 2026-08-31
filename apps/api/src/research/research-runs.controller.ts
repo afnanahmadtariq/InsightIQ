@@ -29,6 +29,12 @@ export class ResearchRunsController {
     return this.discovery.discover(session, id)
   }
 
+  @Post(':id/retry')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  retry(@Session() session: AuthenticatedSession, @Param('id') id: string) {
+    return this.runs.retry(session, id)
+  }
+
   @Get(':id')
   get(@Session() session: AuthenticatedSession, @Param('id') id: string) {
     return this.runs.get(session, id)

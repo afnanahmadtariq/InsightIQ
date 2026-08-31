@@ -4,8 +4,8 @@ Evidence-first AI sales intelligence for researching prospects, connecting publi
 
 ## Repository
 
-- `apps/web`: Next.js landing page, authentication, workspace onboarding, dashboard, and research intake.
-- `apps/api`: NestJS authentication, account context, and tenant-scoped research APIs.
+- `apps/web`: Next.js landing page, authentication, workspace onboarding, research workflow, evidence library, deal briefs, notifications, and integration readiness.
+- `apps/api`: NestJS authentication, account context, tenant-scoped research actions, discovery, and cross-run libraries.
 - `packages/db`: Prisma/PostgreSQL identity, workspace, research, evidence, brief, and notification models.
 - `nginx`: production API reverse proxy.
 
@@ -70,6 +70,16 @@ SDK. Searches run in parallel, tracking parameters are removed, duplicate URLs
 are merged, and provider request metadata is preserved on each source. Discovery
 leaves the run in `running` so later evidence extraction and synthesis workers can
 finish it; provider failures move the run to `failed`.
+
+The authenticated product flow and the contracts for the next workers are
+documented in [`docs/user-flows.md`](docs/user-flows.md). Current supporting
+endpoints include:
+
+- `POST /research-runs/:id/retry` to safely return failed runs to the queue;
+- `GET /evidence` for workspace sources and normalized claims;
+- `GET /deal-briefs` and `GET /deal-briefs/:id` for synthesized outputs;
+- `GET /notifications` and `POST /notifications/:id/read` for in-app delivery;
+- `GET /integrations` for non-secret pipeline readiness.
 
 ## Deployment
 
