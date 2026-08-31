@@ -21,6 +21,15 @@ services:
       NODE_ENV: production
       PORT: 3001
       WEB_ORIGIN: https://${PRIMARY_DOMAIN:-insightiq.zerotools.online}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://${API_DOMAIN:-api-insightiq.zerotools.online}
+      BETTER_AUTH_TRUSTED_ORIGINS: https://${PRIMARY_DOMAIN:-insightiq.zerotools.online}
+      BETTER_AUTH_COOKIE_DOMAIN: ${BETTER_AUTH_COOKIE_DOMAIN:-.zerotools.online}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-InsightIQ <onboarding@resend.dev>}
+      RESEND_REPLY_TO_EMAIL: ${RESEND_REPLY_TO_EMAIL:-}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-insightiq}?schema=public
     depends_on:
       postgres:

@@ -6,15 +6,25 @@
     "build": "nest build",
     "clean": "rm -rf dist",
     "start": "node dist/main.js",
+    "test": "npm run build && node --test test/*.test.cjs",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@better-auth/prisma-adapter": "^1.7.2",
     "@insightiq/db": "*",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/throttler": "^6.5.0",
+    "@thallesp/nestjs-better-auth": "^2.7.0",
+    "better-auth": "^1.7.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^16.6.1",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.24.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
