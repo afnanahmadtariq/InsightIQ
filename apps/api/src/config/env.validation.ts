@@ -2,6 +2,7 @@ const DEFAULT_WEB_URL = 'http://localhost:3000'
 const DEFAULT_API_URL = 'http://localhost:3001'
 const DEVELOPMENT_AUTH_SECRET = 'insightiq-development-secret-change-before-production'
 const EMAIL_PATTERN = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/
+const TAVILY_SEARCH_DEPTHS = ['basic', 'advanced', 'fast', 'ultra-fast'] as const
 
 function optionalString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
@@ -59,6 +60,31 @@ function emailConfiguration(config: Record<string, unknown>) {
   return { RESEND_API_KEY: apiKey ?? '', RESEND_FROM_EMAIL: from }
 }
 
+function boundedInteger(value: unknown, fallback: number, minimum: number, maximum: number, key: string) {
+  const normalized = optionalString(value)
+  const parsed = normalized === undefined ? fallback : Number(normalized)
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${key} must be an integer between ${minimum} and ${maximum}`)
+  }
+  return parsed
+}
+
+function tavilyConfiguration(config: Record<string, unknown>) {
+  const apiKey = optionalString(config.TAVILY_API_KEY)
+  const searchDepth = optionalString(config.TAVILY_SEARCH_DEPTH) ?? 'advanced'
+  if (!TAVILY_SEARCH_DEPTHS.includes(searchDepth as (typeof TAVILY_SEARCH_DEPTHS)[number])) {
+    throw new Error(`TAVILY_SEARCH_DEPTH must be one of ${TAVILY_SEARCH_DEPTHS.join(', ')}`)
+  }
+  if (apiKey?.startsWith('replace-')) throw new Error('TAVILY_API_KEY must not be a placeholder')
+
+  return {
+    TAVILY_API_KEY: apiKey ?? '',
+    TAVILY_PROJECT_ID: optionalString(config.TAVILY_PROJECT_ID) ?? '',
+    TAVILY_SEARCH_DEPTH: searchDepth,
+    TAVILY_MAX_RESULTS: boundedInteger(config.TAVILY_MAX_RESULTS, 6, 1, 20, 'TAVILY_MAX_RESULTS'),
+  }
+}
+
 export function validateEnvironment(config: Record<string, unknown>) {
-  return { ...config, ...authConfiguration(config), ...emailConfiguration(config) }
+  return { ...config, ...authConfiguration(config), ...emailConfiguration(config), ...tavilyConfiguration(config) }
 }

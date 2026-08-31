@@ -7,6 +7,7 @@ const repositoryRoot = resolve(__dirname, '../../..')
 const apiWorkflow = readFileSync(resolve(repositoryRoot, '.github/workflows/deploy-vps.yml'), 'utf8')
 const webWorkflow = readFileSync(resolve(repositoryRoot, '.github/workflows/deploy-cloudflare.yml'), 'utf8')
 const rootPackage = readFileSync(resolve(repositoryRoot, 'package.json'), 'utf8')
+const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
 
 test('production deployments are triggered by version tags, not branch pushes', () => {
   for (const workflow of [apiWorkflow, webWorkflow]) {
@@ -40,4 +41,10 @@ test('repository clean uses cross-platform rimraf through Turbo', () => {
 
 test('deployment configuration contains no Kelvo paths or images', () => {
   assert.doesNotMatch(`${apiWorkflow}\n${webWorkflow}`, /kelvo/i)
+})
+
+test('API deployment passes project-scoped Tavily configuration to the container', () => {
+  assert.match(compose, /TAVILY_API_KEY/)
+  assert.match(compose, /TAVILY_PROJECT_ID/)
+  assert.match(compose, /TAVILY_SEARCH_DEPTH/)
 })

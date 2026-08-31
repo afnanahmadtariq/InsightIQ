@@ -1,12 +1,17 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common'
+import { Throttle } from '@nestjs/throttler'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthenticatedSession } from '../auth/account-context.service'
 import { CreateResearchRunDto } from './dto/create-research-run.dto'
+import { ResearchDiscoveryService } from './research-discovery.service'
 import { ResearchRunsService } from './research-runs.service'
 
 @Controller('research-runs')
 export class ResearchRunsController {
-  constructor(private readonly runs: ResearchRunsService) {}
+  constructor(
+    private readonly runs: ResearchRunsService,
+    private readonly discovery: ResearchDiscoveryService,
+  ) {}
 
   @Post()
   create(@Session() session: AuthenticatedSession, @Body() input: CreateResearchRunDto) {
@@ -16,6 +21,12 @@ export class ResearchRunsController {
   @Get()
   list(@Session() session: AuthenticatedSession) {
     return this.runs.list(session)
+  }
+
+  @Post(':id/discover')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  discover(@Session() session: AuthenticatedSession, @Param('id') id: string) {
+    return this.discovery.discover(session, id)
   }
 
   @Get(':id')

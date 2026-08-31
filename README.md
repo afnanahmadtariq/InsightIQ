@@ -47,6 +47,10 @@ Production requires at least:
 - `PRIMARY_DOMAIN` and `API_DOMAIN`
 - database and deployment variables already listed in `.env.example`
 
+Set `TAVILY_API_KEY` for reliable production web discovery. Tavily's SDK supports
+keyless local evaluation with a shared limit; `TAVILY_PROJECT_ID`, search depth,
+and per-query result count are optional and documented in `.env.example`.
+
 ## Research foundation
 
 `POST /research-runs` accepts prospect identifiers, an offer/value proposition, and either a meeting or outreach goal. It atomically creates the prospect, offer, immutable input snapshot, and queued research run inside the active workspace.
@@ -59,6 +63,13 @@ The schema is ready for asynchronous workers to add:
 - in-app completion notifications.
 
 Compound workspace keys prevent a run, source, evidence claim, or brief from being linked across tenants.
+
+`POST /research-runs/:id/discover` claims one queued run and performs focused
+prospect, company, and recent-signal searches through the project-local Tavily
+SDK. Searches run in parallel, tracking parameters are removed, duplicate URLs
+are merged, and provider request metadata is preserved on each source. Discovery
+leaves the run in `running` so later evidence extraction and synthesis workers can
+finish it; provider failures move the run to `failed`.
 
 ## Deployment
 

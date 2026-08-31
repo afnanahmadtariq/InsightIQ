@@ -30,6 +30,16 @@ test('Google credentials must be configured as a pair', () => {
   )
 })
 
+test('Tavily discovery settings are bounded and have useful defaults', () => {
+  const environment = validateEnvironment({ NODE_ENV: 'development' })
+  assert.equal(environment.TAVILY_SEARCH_DEPTH, 'advanced')
+  assert.equal(environment.TAVILY_MAX_RESULTS, 6)
+  assert.throws(
+    () => validateEnvironment({ NODE_ENV: 'development', TAVILY_MAX_RESULTS: '21' }),
+    /between 1 and 20/,
+  )
+})
+
 test('authentication email is branded and escapes untrusted content', () => {
   const message = renderAuthEmail({
     kind: 'verification',
