@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { FormEvent, useEffect, useState } from 'react'
 import {
   FiArrowRight,
@@ -89,6 +90,7 @@ export default function Home() {
         <div className={styles.navLinks}>
           <a href="#how-it-works">How it works</a>
           <a href="#features">Features</a>
+          <Link href="/sign-in">Sign in</Link>
           <a href="#waitlist" className={styles.navCta}>Join the waitlist</a>
         </div>
       </nav>
