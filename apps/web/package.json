@@ -7,7 +7,7 @@
     "clean": "rimraf .next .open-next .wrangler",
     "start": "next start",
     "lint": "eslint .",
-    "check-types": "tsc --noEmit",
+    "check-types": "next typegen && tsc --noEmit --incremental false",
     "cf:build": "opennextjs-cloudflare build",
     "cf:deploy": "opennextjs-cloudflare deploy"
   },

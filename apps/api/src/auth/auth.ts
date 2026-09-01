@@ -3,15 +3,7 @@ import { db } from '@insightiq/db'
 import { betterAuth } from 'better-auth'
 import { createAuthMiddleware } from 'better-auth/api'
 import { organization, twoFactor } from 'better-auth/plugins'
-import { config as loadEnvironment } from 'dotenv'
-import { basename, dirname, resolve } from 'node:path'
 import { sendAuthEmail } from './auth-email'
-
-const currentDirectory = process.cwd()
-const workspaceRoot = basename(currentDirectory) === 'api' && basename(dirname(currentDirectory)) === 'apps'
-  ? resolve(currentDirectory, '../..')
-  : currentDirectory
-loadEnvironment({ path: resolve(workspaceRoot, '.env') })
 
 const isProduction = process.env.NODE_ENV === 'production'
 const baseURL = process.env.BETTER_AUTH_URL?.trim() || 'http://localhost:3001'

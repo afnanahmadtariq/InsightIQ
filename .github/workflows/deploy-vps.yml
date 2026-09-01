@@ -20,6 +20,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "turbo.json"
+      - "eslint.config.mjs"
       - "docker-compose.yml"
       - "nginx/**"
       - "apps/api/Dockerfile"
@@ -48,13 +49,13 @@ jobs:
         run: npm run db:generate
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --filter=@insightiq/api...
 
       - name: Check types
-        run: npm run check-types
+        run: npm run check-types -- --filter=@insightiq/api...
 
       - name: Build API
-        run: npx turbo run build --filter=@insightiq/api
+        run: npm run build -- --filter=@insightiq/api
 
       - name: Run API tests
         working-directory: apps/api

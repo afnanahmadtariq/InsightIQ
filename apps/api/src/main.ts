@@ -1,9 +1,15 @@
 import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
-import { AppModule } from './app.module'
+import { config as loadEnvironment } from 'dotenv'
+import { resolve } from 'node:path'
+
+loadEnvironment({
+  path: [resolve(process.cwd(), '.env'), resolve(process.cwd(), '../../.env')],
+})
 
 async function bootstrap() {
+  const { AppModule } = await import('./app.module')
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false })
   app.set('trust proxy', 1)
   app.enableCors({
