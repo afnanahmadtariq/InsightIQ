@@ -29,18 +29,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Research queue</Link>
     <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} connected to <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
 
-    <section className="grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 max-[700px]:grid-cols-1 max-[700px]:gap-0 [&>div]:bg-white [&>div]:p-[18px] max-[700px]:[&>div]:border-b max-[700px]:[&>div]:border-iq-200 [&_small]:mb-[7px] [&_small]:block [&_small]:text-[.68rem] [&_small]:tracking-[.08em] [&_small]:text-iq-500 [&_small]:uppercase [&_strong]:text-[.9rem] [&_strong]:text-iq-900 [&_strong]:capitalize">
-      <div><small>Created</small><strong>{formatDate(run.requestedAt, { year: undefined })}</strong></div>
-      <div><small>Public sources</small><strong>{run.sources.length}</strong></div>
-      <div><small>Evidence claims</small><strong>{run.evidence.length}</strong></div>
-      <div><small>Brief</small><strong>{run.brief ? run.brief.status : 'Pending'}</strong></div>
+    <section className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 sm:grid-cols-2 lg:grid-cols-4">
+      <RunMetric label="Created" value={formatDate(run.requestedAt, { year: undefined })}/>
+      <RunMetric label="Public sources" value={run.sources.length}/>
+      <RunMetric label="Evidence claims" value={run.evidence.length}/>
+      <RunMetric label="Brief" value={run.brief ? run.brief.status : 'Pending'}/>
     </section>
 
-    <section className="grid grid-cols-4 gap-[11px] max-[950px]:grid-cols-2 max-[700px]:grid-cols-1 [&>article]:flex [&>article]:min-h-[125px] [&>article]:gap-[11px] [&>article]:rounded-[15px] [&>article]:border [&>article]:border-iq-200 [&>article]:bg-white/68 [&>article]:p-[17px] [&>article>span]:grid [&>article>span]:size-[31px] [&>article>span]:shrink-0 [&>article>span]:place-items-center [&>article>span]:rounded-[10px] [&>article>span]:bg-[#f1f4f9] [&>article>span]:text-iq-500 [&>article[data-complete=true]>span]:bg-[#eaf8f1] [&>article[data-complete=true]>span]:text-success [&_small]:text-[.62rem] [&_small]:tracking-[.08em] [&_small]:text-iq-500 [&_strong]:mt-[3px] [&_strong]:mb-[5px] [&_strong]:block [&_strong]:text-[.84rem] [&_strong]:text-iq-900 [&_p]:m-0 [&_p]:text-[.72rem] [&_p]:leading-[1.45] [&_p]:text-iq-500" aria-label="Research workflow">
-      <article data-complete="true"><span><Check size={16}/></span><div><small>01</small><strong>Intake</strong><p>Identifiers and offer preserved.</p></div></article>
-      <article data-complete={discoveryComplete}><span>{discoveryComplete ? <Check size={16}/> : <Search size={16}/>}</span><div><small>02</small><strong>Discovery</strong><p>{discoveryComplete ? `${run.sources.length} sources collected.` : 'Ready to search public sources.'}</p></div></article>
-      <article data-complete={evidenceComplete}><span>{evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}</span><div><small>03</small><strong>Evidence</strong><p>{evidenceComplete ? `${run.evidence.length} claims normalized.` : 'Normalization is the next worker stage.'}</p></div></article>
-      <article data-complete={Boolean(run.brief)}><span>{run.brief ? <Check size={16}/> : <Sparkles size={16}/>}</span><div><small>04</small><strong>Brief</strong><p>{run.brief ? 'Tailored output is ready.' : 'Synthesis follows verified evidence.'}</p></div></article>
+    <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[950px]:grid-cols-4" aria-label="Research workflow">
+      <WorkflowStep number="01" title="Intake" description="Identifiers and offer preserved." complete icon={<Check size={16}/>}/>
+      <WorkflowStep number="02" title="Discovery" description={discoveryComplete ? `${run.sources.length} sources collected.` : 'Ready to search public sources.'} complete={discoveryComplete} icon={discoveryComplete ? <Check size={16}/> : <Search size={16}/>}/>
+      <WorkflowStep number="03" title="Evidence" description={evidenceComplete ? `${run.evidence.length} claims normalized.` : 'Normalization is the next worker stage.'} complete={evidenceComplete} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
+      <WorkflowStep number="04" title="Brief" description={run.brief ? 'Tailored output is ready.' : 'Synthesis follows verified evidence.'} complete={Boolean(run.brief)} icon={run.brief ? <Check size={16}/> : <Sparkles size={16}/>}/>
     </section>
 
     {run.status === 'queued' && <ResearchCallout icon={<Search size={19}/>} title="Ready for public-source discovery" body="Launch the current Tavily discovery stage. It searches profile, company, and recent-signal queries in parallel while keeping every returned URL traceable."><ResearchRunActions run={run}/></ResearchCallout>}
@@ -64,12 +64,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       <aside className="sticky top-24 rounded-2xl border border-iq-200 bg-white p-5 max-[950px]:static">
         <p className="mt-0 mb-[17px] text-[.91rem] font-bold text-iq-900">Research context</p>
-        <dl className="mt-0 mb-[18px] grid [&>div]:grid [&>div]:gap-[3px] [&>div]:border-b [&>div]:border-iq-100 [&>div]:py-[11px] [&_dt]:text-[.66rem] [&_dt]:tracking-[.07em] [&_dt]:text-iq-500 [&_dt]:uppercase [&_dd]:m-0 [&_dd]:text-[.82rem] [&_dd]:leading-[1.4] [&_dd]:text-iq-900">
-          <div><dt>Prospect</dt><dd>{run.prospect.name}</dd></div><div><dt>Company</dt><dd>{run.prospect.companyName || 'Not supplied'}</dd></div><div><dt>Offer</dt><dd>{run.offer.name}</dd></div><div><dt>Target persona</dt><dd>{run.offer.targetPersona || 'Not supplied'}</dd></div><div><dt>Goal</dt><dd>{run.goal === 'meeting' ? 'Prepare for a meeting' : 'Create personalized outreach'}</dd></div>
+        <dl className="mt-0 mb-[18px] grid">
+          <ContextRow label="Prospect" value={run.prospect.name}/><ContextRow label="Company" value={run.prospect.companyName || 'Not supplied'}/><ContextRow label="Offer" value={run.offer.name}/><ContextRow label="Target persona" value={run.offer.targetPersona || 'Not supplied'}/><ContextRow label="Goal" value={run.goal === 'meeting' ? 'Prepare for a meeting' : 'Create personalized outreach'}/>
         </dl>
         <div><small className="text-[.66rem] tracking-[.07em] text-iq-500 uppercase">Value proposition</small><p className="mt-[7px] mb-[18px] text-[.78rem] leading-[1.55] text-iq-600">{run.offer.valueProposition}</p></div>
         {run.brief && <ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink>}
       </aside>
     </WorkspaceSplit>
   </WorkspacePage>
+}
+
+function RunMetric({ label, value }: { label: string; value: ReactNode }) {
+  return <div className="bg-white p-[18px]"><small className="mb-2 block text-[.68rem] tracking-wider text-iq-500 uppercase">{label}</small><strong className="text-sm text-iq-900 capitalize">{value}</strong></div>
+}
+
+function WorkflowStep({ number, title, description, complete, icon }: { number: string; title: string; description: string; complete: boolean; icon: ReactNode }) {
+  return <article className="flex min-h-[125px] gap-3 rounded-[15px] border border-iq-200 bg-white/70 p-4"><span className={`grid size-8 shrink-0 place-items-center rounded-[10px] ${complete ? 'bg-[#eaf8f1] text-success' : 'bg-[#f1f4f9] text-iq-500'}`}>{icon}</span><div><small className="text-[.62rem] tracking-wider text-iq-500">{number}</small><strong className="mt-1 mb-1 block text-sm text-iq-900">{title}</strong><p className="m-0 text-xs leading-normal text-iq-500">{description}</p></div></article>
+}
+
+function ContextRow({ label, value }: { label: string; value: string }) {
+  return <div className="grid gap-1 border-b border-iq-100 py-3"><dt className="text-[.66rem] tracking-wider text-iq-500 uppercase">{label}</dt><dd className="m-0 text-sm leading-normal text-iq-900">{value}</dd></div>
 }

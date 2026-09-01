@@ -13,8 +13,9 @@ export function ItemIcon({ children }: { children: ReactNode }) {
   return <span className="grid size-[38px] shrink-0 place-items-center rounded-[11px] bg-iq-100 text-brand">{children}</span>
 }
 
-export function ItemBody({ children }: { children: ReactNode }) {
-  return <div className="min-w-0 flex-1 [&_h2]:mt-0 [&_h2]:mb-1 [&_h2]:truncate [&_h2]:text-[.94rem] [&_h2]:text-iq-900 [&_h3]:mt-0 [&_h3]:mb-1 [&_h3]:truncate [&_h3]:text-[.94rem] [&_h3]:text-iq-900 [&_p]:m-0 [&_p]:truncate [&_p]:text-[.8rem] [&_p]:text-iq-500">{children}</div>
+export function ItemBody({ title, description, heading = 'h3' }: { title: ReactNode; description: ReactNode; heading?: 'h2' | 'h3' }) {
+  const Heading = heading
+  return <div className="min-w-0 flex-1"><Heading className="mt-0 mb-1 truncate text-[.94rem] text-iq-900">{title}</Heading><p className="m-0 truncate text-[.8rem] text-iq-500">{description}</p></div>
 }
 
 export function ItemMeta({ children }: { children: ReactNode }) {

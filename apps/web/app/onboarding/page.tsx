@@ -3,4 +3,15 @@ import { OnboardingForm } from '../../components/onboarding-form'
 import { Brand } from '../../components/ui/brand'
 import { requireAccountContext } from '../../lib/server-auth'
 export const metadata: Metadata = { title: 'Create workspace · InsightIQ' }
-export default async function Page() { const context = await requireAccountContext(); return <main className="min-h-screen bg-iq-50 bg-[radial-gradient(circle_at_90%_0%,#e8f6ff_0,transparent_28%)] px-6 pt-[30px] pb-[70px]"><header className="mx-auto flex w-full max-w-[1000px] items-center justify-between text-iq-900 [&_p]:text-[.82rem] [&_p]:text-iq-600 max-[560px]:[&_p]:hidden"><Brand/><p>Signed in as {context.user.email}</p></header><section className="mx-auto mt-[100px] w-full max-w-[720px] max-[560px]:mt-[70px] [&>p]:mt-0 [&>p]:mb-2.5 [&>p]:text-[.75rem] [&>p]:font-[650] [&>p]:tracking-[.12em] [&>p]:text-brand-bright [&>p]:uppercase [&>h1]:m-0 [&>h1]:text-[clamp(2.5rem,6vw,4.5rem)] [&>h1]:leading-none [&>h1]:font-light [&>h1]:tracking-[-.06em] [&>h1]:text-iq-900 [&>span]:mt-5 [&>span]:mb-[38px] [&>span]:block [&>span]:max-w-[600px] [&>span]:text-[1.05rem] [&>span]:leading-[1.65] [&>span]:text-iq-600"><p>Workspace setup</p><h1>Where your deal intelligence lives.</h1><span>Create a private workspace for your prospects, offers, evidence, and research briefs.</span><OnboardingForm context={context}/></section></main> }
+export default async function Page() {
+  const context = await requireAccountContext()
+  return <main className="min-h-screen bg-iq-50 bg-[radial-gradient(circle_at_90%_0%,#e8f6ff_0,transparent_28%)] px-6 pt-[30px] pb-[70px]">
+    <header className="mx-auto flex w-full max-w-[1000px] items-center justify-between text-iq-900"><Brand/><p className="text-sm text-iq-600 max-[560px]:hidden">Signed in as {context.user.email}</p></header>
+    <section className="mx-auto mt-[100px] w-full max-w-[720px] max-[560px]:mt-[70px]">
+      <p className="mt-0 mb-2.5 text-xs font-semibold tracking-[.12em] text-brand-bright uppercase">Workspace setup</p>
+      <h1 className="m-0 text-[clamp(2.5rem,6vw,4.5rem)] leading-none font-normal tracking-[-.055em] text-iq-900">Where your deal intelligence lives.</h1>
+      <p className="mt-5 mb-9 max-w-[600px] text-base leading-relaxed text-iq-600">Create a private workspace for your prospects, offers, evidence, and research briefs.</p>
+      <OnboardingForm context={context}/>
+    </section>
+  </main>
+}

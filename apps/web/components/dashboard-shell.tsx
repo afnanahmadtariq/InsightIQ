@@ -52,8 +52,8 @@ export function DashboardShell({
 
   return <div className={`grid min-h-screen bg-iq-50 bg-[radial-gradient(circle_at_92%_0%,#e7f5ff_0,transparent_26%)] transition-[grid-template-columns] duration-300 ease-fluid motion-reduce:transition-none ${collapsed ? 'grid-cols-[84px_minmax(0,1fr)] max-[900px]:grid-cols-1' : 'grid-cols-[252px_minmax(0,1fr)] max-[900px]:grid-cols-1'}`}>
     <aside className={`sticky top-0 z-5 flex h-screen flex-col border-r border-iq-200 bg-white/88 py-5 pt-[25px] backdrop-blur-2xl transition-[padding] duration-300 ease-fluid motion-reduce:transition-none max-[900px]:static max-[900px]:block max-[900px]:h-auto max-[900px]:w-full max-[900px]:border-r-0 max-[900px]:border-b max-[900px]:p-[18px] ${collapsed ? 'px-0' : 'px-[18px]'}`}>
-      <div className={`relative flex min-h-9 items-center justify-between max-[900px]:m-0 [&>a]:text-iq-900 ${collapsed ? 'mb-6 w-full justify-center [&>a_span]:hidden' : 'mx-2 mb-7'}`}>
-        <Brand href="/dashboard"/>
+      <div className={`relative flex min-h-9 items-center justify-between text-iq-900 max-[900px]:m-0 ${collapsed ? 'mb-6 w-full justify-center' : 'mx-2 mb-7'}`}>
+        <Brand href="/dashboard" compact={collapsed}/>
         <Button type="button" variant="ghost" size="icon-sm" className={`max-[900px]:hidden ${collapsed ? 'absolute top-6 -right-3.5 z-10 size-7! bg-white' : ''}`} onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
           {collapsed ? <ChevronRight size={18}/> : <ChevronLeft size={18}/>}
         </Button>
@@ -67,17 +67,17 @@ export function DashboardShell({
       <DashboardNav collapsed={collapsed}/>
 
       <div className={`mt-auto flex shrink-0 flex-col gap-2.5 border-t border-iq-200 pt-[15px] max-[900px]:hidden ${collapsed ? 'w-full items-center px-0' : 'px-2'}`}>
-        <div className={`flex min-w-0 items-center gap-2.5 ${collapsed ? 'justify-center [&>div]:hidden' : ''}`}>
+        <div className={`flex min-w-0 items-center gap-2.5 ${collapsed ? 'justify-center' : ''}`}>
           <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-[linear-gradient(135deg,#dff3ff,#dce8ff)] text-[.72rem] font-[750] text-iq-900">{initials}</span>
-          <div className="grid min-w-0 gap-0.5"><strong className="truncate text-[.8rem] text-iq-900">{context.user.name}</strong><small className="truncate text-[.69rem] text-iq-500">{context.user.email}</small></div>
+          {!collapsed && <div className="grid min-w-0 gap-0.5"><strong className="truncate text-[.8rem] text-iq-900">{context.user.name}</strong><small className="truncate text-[.69rem] text-iq-500">{context.user.email}</small></div>}
         </div>
         <SignOutButton compact={collapsed}/>
       </div>
     </aside>
 
     <div className="min-w-0">
-      <header className="flex h-[76px] items-center justify-between gap-5 border-b border-iq-200 bg-iq-50/72 px-[34px] backdrop-blur-xl max-[900px]:h-16 max-[900px]:px-5 max-[560px]:[&>div:first-child]:max-w-[170px]">
-        <div className="grid gap-0.5"><small className="text-[.68rem] tracking-[.07em] text-iq-500 uppercase">Active workspace</small><strong className="text-[.9rem] text-iq-900 max-[560px]:truncate">{context.activeWorkspace.name}</strong></div>
+      <header className="flex h-[76px] items-center justify-between gap-5 border-b border-iq-200 bg-iq-50/72 px-[34px] backdrop-blur-xl max-[900px]:h-16 max-[900px]:px-5">
+        <div className="grid gap-0.5 max-[560px]:max-w-[170px]"><small className="text-[.68rem] tracking-[.07em] text-iq-500 uppercase">Active workspace</small><strong className="truncate text-[.9rem] text-iq-900">{context.activeWorkspace.name}</strong></div>
         <div className="flex items-center gap-[9px]">
           <Popover.Root open={notificationsOpen} onOpenChange={setNotificationsOpen}>
             <Popover.Trigger asChild>

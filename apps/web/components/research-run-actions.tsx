@@ -43,12 +43,12 @@ export function ResearchRunActions({ run }: { run: Pick<ResearchRunSummary, 'id'
     return <Button variant="secondary" type="button" onClick={() => router.refresh()}><RefreshCw size={17}/>Refresh status</Button>
   }
 
-  return <div className="grid shrink-0 justify-items-end gap-[7px] max-[700px]:w-full max-[700px]:justify-items-start [&_button]:whitespace-nowrap [&_p]:max-w-[300px] [&_p]:text-right [&_p]:text-[.73rem] max-[700px]:[&_p]:text-left">
-    <Button type="button" onClick={discover} disabled={pending}>
+  return <div className="grid shrink-0 justify-items-end gap-2 max-[700px]:w-full max-[700px]:justify-items-start">
+    <Button className="whitespace-nowrap" type="button" onClick={discover} disabled={pending}>
       {pending ? <RefreshCw className="animate-spin" size={17}/> : <Search size={17}/>}
       {pending ? 'Collecting public sources…' : run.status === 'failed' ? 'Retry source discovery' : 'Collect public sources'}
     </Button>
-    {result && <p>{result.sourcesCollected} sources collected across {result.queriesCompleted} searches.</p>}
+    {result && <p className="m-0 max-w-[300px] text-right text-xs text-iq-600 max-[700px]:text-left">{result.sourcesCollected} sources collected across {result.queriesCompleted} searches.</p>}
     {error && <FormMessage tone="error" className="text-[.8rem]">{error}</FormMessage>}
   </div>
 }

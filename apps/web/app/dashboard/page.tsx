@@ -31,7 +31,7 @@ export default async function Page() {
     </MetricGrid>
     <WorkspaceSection title="Continue your research" description="The latest activity in this workspace." action={<Link href="/dashboard/research">View all</Link>}>
       {runs.length ? <WorkspaceList>{runs.slice(0, 4).map((run) => <WorkspaceListLink href={`/dashboard/research/${run.id}`} key={run.id}>
-        <ItemIcon><Search size={18}/></ItemIcon><ItemBody><h3>{run.prospect.name}{run.prospect.companyName ? ` · ${run.prospect.companyName}` : ''}</h3><p>{run.offer.name} · {run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'}</p></ItemBody><ItemMeta><StatusBadge status={run.status}/><time>{formatDate(run.requestedAt, { year: undefined })}</time></ItemMeta>
+        <ItemIcon><Search size={18}/></ItemIcon><ItemBody title={<>{run.prospect.name}{run.prospect.companyName ? ` · ${run.prospect.companyName}` : ''}</>} description={<>{run.offer.name} · {run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'}</>}/><ItemMeta><StatusBadge status={run.status}/><time>{formatDate(run.requestedAt, { year: undefined })}</time></ItemMeta>
       </WorkspaceListLink>)}</WorkspaceList> : <EmptyState icon={<Search size={20}/>} title="Your first signal starts here" body="Add a prospect and your offer context. InsightIQ will preserve the inputs and prepare a source-first research run." action={<Link href="/dashboard/research/new">Create a research run</Link>}/>}
     </WorkspaceSection>
     <FeatureGrid>

@@ -14,11 +14,13 @@ const navigation = [
 
 export function DashboardNav({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname()
-  return <nav className={`grid gap-1 max-[900px]:mt-4 max-[900px]:flex max-[900px]:gap-[5px] max-[900px]:overflow-x-auto max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden ${collapsed ? 'w-full justify-items-center max-[900px]:w-auto max-[900px]:justify-items-normal' : ''}`} aria-label="Workspace navigation">
+  return <nav className={`grid gap-1 max-[900px]:mt-4 max-[900px]:flex max-[900px]:overflow-x-auto ${collapsed ? 'w-full justify-items-center max-[900px]:w-auto' : ''}`} aria-label="Workspace navigation">
     {navigation.map(({ href, label, icon: Icon, exact }) => {
       const active = exact ? pathname === href : pathname.startsWith(href)
-      return <Link key={href} href={href} className={`flex min-h-[43px] items-center gap-[11px] rounded-[11px] px-3 text-[.88rem] font-[550] text-iq-600 transition-colors duration-300 ease-fluid hover:bg-iq-100 hover:text-iq-900 [&_svg]:shrink-0 [&_svg]:[stroke-dasharray:48] [&_svg]:[stroke-dashoffset:0] hover:[&_svg]:animate-nav-icon max-[900px]:min-h-[39px] max-[900px]:shrink-0 max-[900px]:px-[11px] max-[560px]:w-[42px] max-[560px]:justify-center max-[560px]:px-0 max-[560px]:[&_span]:hidden motion-reduce:hover:[&_svg]:animate-none ${collapsed ? 'w-11 justify-center px-0 [&>span]:hidden max-[900px]:w-auto max-[900px]:justify-start max-[900px]:px-[11px] max-[900px]:[&>span]:inline max-[560px]:w-[42px] max-[560px]:justify-center max-[560px]:px-0 max-[560px]:[&>span]:hidden' : ''} ${active ? 'bg-[#e7f3ff] font-[650] text-brand' : ''}`} aria-current={active ? 'page' : undefined} aria-label={label} title={collapsed ? label : undefined}>
-        <Icon size={18}/><span>{label}</span>
+      const collapsedClass = collapsed ? 'w-11 justify-center px-0 max-[900px]:w-auto max-[900px]:justify-start max-[900px]:px-3' : ''
+      const activeClass = active ? 'bg-[#e7f3ff] font-semibold text-brand' : 'text-iq-600 hover:bg-iq-100 hover:text-iq-900'
+      return <Link key={href} href={href} className={`flex min-h-[43px] items-center gap-2.5 rounded-xl px-3 text-sm font-medium transition-colors duration-200 max-[900px]:min-h-[39px] max-[900px]:shrink-0 max-[560px]:w-[42px] max-[560px]:justify-center max-[560px]:px-0 ${collapsedClass} ${activeClass}`} aria-current={active ? 'page' : undefined} aria-label={label} title={collapsed ? label : undefined}>
+        <Icon className="shrink-0" size={18}/><span className={`${collapsed ? 'hidden max-[900px]:inline' : ''} max-[560px]:hidden`}>{label}</span>
       </Link>
     })}
   </nav>
