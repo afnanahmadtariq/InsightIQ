@@ -56,6 +56,7 @@ export const auth = betterAuth({
     }),
   },
   account: {
+    identityStrategy: 'provider-id',
     accountLinking: { enabled: true },
   },
   socialProviders: googleClientId && googleClientSecret ? {
