@@ -219,6 +219,11 @@ model ResearchRun {
   completedAt    DateTime?
   errorMessage   String?
   inputSnapshot  Json
+  // Postgres queue locks. The API does not set these; the Python worker claims running rows.
+  lockedAt       DateTime?
+  lockExpiresAt  DateTime?
+  workerId       String?
+  attemptCount   Int              @default(0)
   sources        EvidenceSource[]
   evidence       Evidence[]
   brief          DealBrief?
@@ -226,6 +231,7 @@ model ResearchRun {
 
   @@unique([id, organizationId])
   @@index([organizationId, status, requestedAt])
+  @@index([status, lockExpiresAt, requestedAt])
   @@index([prospectId, organizationId])
   @@index([offerId, organizationId])
   @@index([createdById])

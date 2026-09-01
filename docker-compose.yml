@@ -46,6 +46,15 @@ services:
       retries: 12
       start_period: 10s
 
+  worker:
+    build: ./apps/worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-insightiq}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped

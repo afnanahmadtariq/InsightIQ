@@ -6,6 +6,7 @@ Evidence-first AI sales intelligence for researching prospects, connecting publi
 
 - `apps/web`: Next.js landing page, authentication, workspace onboarding, research workflow, evidence library, deal briefs, notifications, and integration readiness.
 - `apps/api`: NestJS authentication, account context, tenant-scoped research actions, discovery, and cross-run libraries.
+- `apps/worker`: Python process that claims `research_run` rows from PostgreSQL after discovery has stored sources.
 - `packages/db`: Prisma/PostgreSQL identity, workspace, research, evidence, brief, and notification models.
 - `nginx`: production API reverse proxy.
 
@@ -14,12 +15,13 @@ Evidence-first AI sales intelligence for researching prospects, connecting publi
 ```bash
 cp .env.example .env
 npm install
+python3 -m pip install -e apps/worker
 docker compose up -d postgres
 npm run db:migrate:dev
 npm run dev
 ```
 
-The web app runs on `http://localhost:3000` and the API on `http://localhost:3001` by default.
+The web app runs on `http://localhost:3000` and the API on `http://localhost:3001` by default. Turbo also starts `@insightiq/worker`, which polls PostgreSQL for runs that already have sources.
 
 ## Quality pipeline
 
