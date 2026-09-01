@@ -1,7 +1,6 @@
 import { ArrowUpRight, FileCheck2, Search } from 'lucide-react'
 import Link from 'next/link'
-import libraryStyles from '../../../components/library.module.css'
-import workspace from '../../../components/workspace.module.css'
+import { EmptyState, MetricCard, MetricGrid, SecondaryAction, WorkspaceHeader, WorkspacePage, WorkspaceSection } from '../../../components/workspace-ui'
 import { formatConfidence, formatDate } from '../../../lib/format'
 import type { EvidenceLibraryResponse } from '../../../lib/research'
 import { authenticatedFetch } from '../../../lib/server-auth'
@@ -9,21 +8,26 @@ import { authenticatedFetch } from '../../../lib/server-auth'
 export default async function Page() {
   const library = await authenticatedFetch<EvidenceLibraryResponse>('/evidence') ?? { sources: [], evidence: [] }
   const citedSources = library.sources.filter((source) => source._count.evidence > 0).length
-  return <div className={workspace.page}>
-    <header className={workspace.pageHeader}><div><p className={workspace.eyebrow}>Evidence library</p><h1>Trace every signal.</h1><p className={workspace.lead}>Public sources stay separate from normalized claims, so useful context never becomes a “fact” without provenance.</p></div><Link className={workspace.secondaryLink} href="/dashboard/research"><Search size={17}/>Research queue</Link></header>
-    <section className={workspace.metricGrid}>
-      <article className={workspace.metric}><span><Search size={18}/></span><div><strong>{library.sources.length}</strong><small>Collected sources</small></div></article>
-      <article className={workspace.metric}><span><FileCheck2 size={18}/></span><div><strong>{library.evidence.length}</strong><small>Verified claims</small></div></article>
-      <article className={workspace.metric}><span><ArrowUpRight size={18}/></span><div><strong>{citedSources}</strong><small>Cited sources</small></div></article>
-      <article className={workspace.metric}><span><FileCheck2 size={18}/></span><div><strong>{library.sources.length - citedSources}</strong><small>Awaiting review</small></div></article>
-    </section>
-    <section className={workspace.section}>
-      <div className={workspace.sectionHeader}><div><h2>Public source layer</h2><p>Discovery output awaiting or supporting evidence extraction.</p></div></div>
-      {library.sources.length ? <div className={libraryStyles.sourceCards}>{library.sources.map((source) => <article className={libraryStyles.sourceCard} key={source.id}><header><span>{source.publisher || 'Public web'}</span><a href={source.url} target="_blank" rel="noreferrer" aria-label={`Open ${source.title}`}><ArrowUpRight size={15}/></a></header><h2>{source.title}</h2>{source.excerpt && <p>{source.excerpt}</p>}<footer><div><span>{source._count.evidence} claims</span><time>{formatDate(source.retrievedAt, { year: undefined })}</time></div><Link href={`/dashboard/research/${source.researchRun.id}`}>{source.researchRun.prospect.name} · {source.researchRun.offer.name}</Link></footer></article>)}</div> : <div className={workspace.empty}><span><Search size={20}/></span><h2>No sources collected yet</h2><p>Open a queued research run and launch public-source discovery. Results will appear here across the workspace.</p><Link href="/dashboard/research">Open research queue</Link></div>}
-    </section>
-    <section className={workspace.section}>
-      <div className={workspace.sectionHeader}><div><h2>Normalized evidence</h2><p>Claims accepted by the future evidence worker with a source and confidence score.</p></div></div>
-      {library.evidence.length ? <div className={libraryStyles.claimList}>{library.evidence.map((item) => <article className={libraryStyles.claim} key={item.id}><header><span>{item.signalType}</span><strong>{formatConfidence(item.confidence)}</strong></header><p>{item.claim}</p><footer><a href={item.source.url} target="_blank" rel="noreferrer">{item.source.title}<ArrowUpRight size={14}/></a><Link href={`/dashboard/research/${item.researchRun.id}`}>{item.researchRun.prospect.name}</Link></footer></article>)}</div> : <div className={workspace.empty}><span><FileCheck2 size={20}/></span><h2>Evidence normalization is the next build stage</h2><p>The cross-run page and tenant-safe API are ready for the worker that converts raw sources into bounded, citable claims.</p></div>}
-    </section>
-  </div>
+
+  return <WorkspacePage>
+    <WorkspaceHeader eyebrow="Evidence library" title="Trace every signal." lead="Public sources stay separate from normalized claims, so useful context never becomes a “fact” without provenance." action={<SecondaryAction href="/dashboard/research"><Search size={17}/>Research queue</SecondaryAction>}/>
+    <MetricGrid>
+      <MetricCard icon={<Search size={18}/>} value={library.sources.length} label="Collected sources"/>
+      <MetricCard icon={<FileCheck2 size={18}/>} value={library.evidence.length} label="Verified claims"/>
+      <MetricCard icon={<ArrowUpRight size={18}/>} value={citedSources} label="Cited sources"/>
+      <MetricCard icon={<FileCheck2 size={18}/>} value={library.sources.length - citedSources} label="Awaiting review"/>
+    </MetricGrid>
+
+    <WorkspaceSection title="Public source layer" description="Discovery output awaiting or supporting evidence extraction.">
+      {library.sources.length ? <div className="grid grid-cols-3 gap-[11px] max-[900px]:grid-cols-2 max-[680px]:grid-cols-1">{library.sources.map((source) => <article className="flex min-w-0 flex-col rounded-[15px] border border-iq-200 bg-white p-[19px]" key={source.id}>
+        <header className="flex items-center justify-between gap-3 text-[.68rem] font-[650] tracking-[.06em] text-brand uppercase"><span className="truncate">{source.publisher || 'Public web'}</span><a className="grid size-[29px] shrink-0 place-items-center rounded-lg bg-iq-100" href={source.url} target="_blank" rel="noreferrer" aria-label={`Open ${source.title}`}><ArrowUpRight size={15}/></a></header>
+        <h2 className="mt-4 mb-2 text-[.92rem] leading-[1.38] text-iq-900">{source.title}</h2>{source.excerpt && <p className="mb-5 line-clamp-4 text-[.78rem] leading-[1.55] text-iq-600">{source.excerpt}</p>}
+        <footer className="mt-auto grid gap-2 border-t border-iq-100 pt-[13px] text-[.68rem] text-iq-500"><div className="flex items-center justify-between gap-2.5"><span>{source._count.evidence} claims</span><time>{formatDate(source.retrievedAt, { year: undefined })}</time></div><Link className="font-[650] text-brand" href={`/dashboard/research/${source.researchRun.id}`}>{source.researchRun.prospect.name} · {source.researchRun.offer.name}</Link></footer>
+      </article>)}</div> : <EmptyState icon={<Search size={20}/>} title="No sources collected yet" body="Open a queued research run and launch public-source discovery. Results will appear here across the workspace." action={<Link href="/dashboard/research">Open research queue</Link>}/>}
+    </WorkspaceSection>
+
+    <WorkspaceSection title="Normalized evidence" description="Claims accepted by the future evidence worker with a source and confidence score.">
+      {library.evidence.length ? <div className="grid gap-[9px]">{library.evidence.map((item) => <article className="rounded-[14px] border border-iq-200 bg-white p-[18px]" key={item.id}><header className="flex items-center justify-between gap-3.5"><span className="text-[.68rem] font-[650] tracking-[.06em] text-brand uppercase">{item.signalType}</span><strong className="text-[.7rem] text-success">{formatConfidence(item.confidence)}</strong></header><p className="my-[13px] text-[.88rem] leading-[1.6] text-iq-700">{item.claim}</p><footer className="flex items-center justify-between gap-3.5 text-[.7rem] text-iq-500"><a className="inline-flex items-center gap-[5px] font-[650] text-brand" href={item.source.url} target="_blank" rel="noreferrer">{item.source.title}<ArrowUpRight size={14}/></a><Link href={`/dashboard/research/${item.researchRun.id}`}>{item.researchRun.prospect.name}</Link></footer></article>)}</div> : <EmptyState icon={<FileCheck2 size={20}/>} title="Evidence normalization is the next build stage" body="The cross-run page and tenant-safe API are ready for the worker that converts raw sources into bounded, citable claims."/>}
+    </WorkspaceSection>
+  </WorkspacePage>
 }

@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { apiRequest } from '../lib/api-client'
 import type { ResearchRunSummary } from '../lib/research'
-import { Button } from './ui'
-import styles from './research.module.css'
+import { Button, FormMessage } from './ui'
 
 type DiscoveryResult = {
   sourcesCollected: number
@@ -43,12 +42,12 @@ export function ResearchRunActions({ run }: { run: Pick<ResearchRunSummary, 'id'
     return <Button variant="secondary" type="button" onClick={() => router.refresh()}><RefreshCw size={17}/>Refresh status</Button>
   }
 
-  return <div className={styles.runActions}>
+  return <div className="grid shrink-0 justify-items-end gap-[7px] max-[700px]:w-full max-[700px]:justify-items-start [&_button]:whitespace-nowrap [&_p]:max-w-[300px] [&_p]:text-right [&_p]:text-[.73rem] max-[700px]:[&_p]:text-left">
     <Button type="button" onClick={discover} disabled={pending}>
-      {pending ? <RefreshCw className={styles.spin} size={17}/> : <Search size={17}/>}
+      {pending ? <RefreshCw className="animate-spin" size={17}/> : <Search size={17}/>}
       {pending ? 'Collecting public sources…' : run.status === 'failed' ? 'Retry source discovery' : 'Collect public sources'}
     </Button>
     {result && <p>{result.sourcesCollected} sources collected across {result.queriesCompleted} searches.</p>}
-    {error && <p className={styles.error}>{error}</p>}
+    {error && <FormMessage tone="error" className="text-[.8rem]">{error}</FormMessage>}
   </div>
 }
