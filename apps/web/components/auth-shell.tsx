@@ -1,6 +1,6 @@
 import { FileCheck2, Search, Sparkles, Target } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Brand } from './ui'
+import { Brand } from './ui/brand'
 
 export function AuthShell({ children, mode }: { children: ReactNode; mode: 'sign-in' | 'sign-up' }) {
   return <main className="grid min-h-screen grid-cols-[minmax(380px,.9fr)_minmax(500px,1.1fr)] bg-white max-[900px]:grid-cols-1">

@@ -1,5 +1,5 @@
 import { ResearchRunForm } from '../../../../components/research-run-form'
-import { WorkspaceHeader, WorkspacePage } from '../../../../components/workspace-ui'
+import { WorkspaceHeader, WorkspacePage } from '../../../../components/workspace/workspace-page'
 
 export default function Page() {
   return <WorkspacePage>

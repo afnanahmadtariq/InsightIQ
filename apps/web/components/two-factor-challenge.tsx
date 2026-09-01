@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import type { AccountContext } from '../lib/account-context'
 import { authClient } from '../lib/auth-client'
-import { Button, Field, FormMessage } from './ui'
+import { Button } from './ui/button'
+import { Field } from './ui/form-field'
+import { FormMessage } from './ui/form-message'
 
 export function TwoFactorChallenge({ context }: { context: AccountContext }) {
   const router = useRouter(); const [code, setCode] = useState(''); const [pending, setPending] = useState(false); const [error, setError] = useState(''); const [sent, setSent] = useState(false)

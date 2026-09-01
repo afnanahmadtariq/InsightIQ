@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { apiRequest } from '../lib/api-client'
 import type { ResearchRunSummary } from '../lib/research'
-import { Button, FormMessage } from './ui'
+import { Button } from './ui/button'
+import { FormMessage } from './ui/form-message'
 
 type DiscoveryResult = {
   sourcesCollected: number

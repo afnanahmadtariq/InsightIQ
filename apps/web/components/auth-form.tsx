@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
 import { authClient, webCallbackURL } from '../lib/auth-client'
 import { apiRequest } from '../lib/api-client'
-import { Button, Field, FormMessage } from './ui'
+import { Button } from './ui/button'
+import { Field } from './ui/form-field'
+import { FormMessage } from './ui/form-message'
 
 type AuthConfiguration = { googleEnabled: boolean }
 

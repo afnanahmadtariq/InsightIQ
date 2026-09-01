@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { authClient, webCallbackURL } from '../lib/auth-client'
-import { Button, Field, FormMessage } from './ui'
+import { Button } from './ui/button'
+import { Field } from './ui/form-field'
+import { FormMessage } from './ui/form-message'
 
 function ReturnToSignIn() {
   return <p className="mt-0.5 mb-0 text-center text-[.86rem] text-iq-600 [&_a]:font-[650] [&_a]:text-brand"><Link href="/sign-in">Return to sign in</Link></p>

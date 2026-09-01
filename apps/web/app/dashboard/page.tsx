@@ -1,6 +1,12 @@
 import { ArrowRight, CircleCheck, Clock3, FileCheck2, Search, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { EmptyState, FeatureGrid, FeatureLink, ItemBody, ItemIcon, ItemMeta, MetricCard, MetricGrid, PrimaryAction, StatusBadge, WorkspaceHeader, WorkspaceList, WorkspaceListLink, WorkspacePage, WorkspaceSection } from '../../components/workspace-ui'
+import { ButtonLink } from '../../components/ui/button'
+import { EmptyState } from '../../components/ui/empty-state'
+import { StatusBadge } from '../../components/ui/status-badge'
+import { FeatureGrid, FeatureLink } from '../../components/workspace/feature-card'
+import { MetricCard, MetricGrid } from '../../components/workspace/metric-card'
+import { WorkspaceHeader, WorkspacePage, WorkspaceSection } from '../../components/workspace/workspace-page'
+import { ItemBody, ItemIcon, ItemMeta, WorkspaceList, WorkspaceListLink } from '../../components/workspace/workspace-list'
 import { formatDate } from '../../lib/format'
 import type { ResearchRunSummary } from '../../lib/research'
 import { authenticatedFetch, requireWorkspace } from '../../lib/server-auth'
@@ -16,7 +22,7 @@ export default async function Page() {
   const activeCount = runs.filter((run) => run.status === 'queued' || run.status === 'running').length
 
   return <WorkspacePage>
-    <WorkspaceHeader eyebrow="Intelligence workspace" title={<>Good morning, {context.user.name.split(' ')[0]}.</>} lead="Research the person, connect their situation to your offer, and keep every recommendation traceable." action={<PrimaryAction href="/dashboard/research/new"><Search size={17}/>New research run</PrimaryAction>}/>
+    <WorkspaceHeader eyebrow="Intelligence workspace" title={<>Good morning, {context.user.name.split(' ')[0]}.</>} lead="Research the person, connect their situation to your offer, and keep every recommendation traceable." action={<ButtonLink href="/dashboard/research/new"><Search size={17}/>New research run</ButtonLink>}/>
     <MetricGrid label="Workspace activity">
       <MetricCard icon={<Clock3 size={18}/>} value={activeCount} label="Active runs"/>
       <MetricCard icon={<Search size={18}/>} value={sourceCount} label="Public sources"/>

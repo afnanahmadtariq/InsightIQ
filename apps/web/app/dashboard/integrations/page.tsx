@@ -1,5 +1,6 @@
 import { Check, CircleDashed, Plug, Search, Sparkles } from 'lucide-react'
-import { StatusBadge, WorkspaceHeader, WorkspacePage, WorkspaceSection, WorkspaceSplit } from '../../../components/workspace-ui'
+import { StatusBadge } from '../../../components/ui/status-badge'
+import { WorkspaceHeader, WorkspacePage, WorkspaceSection, WorkspaceSplit } from '../../../components/workspace/workspace-page'
 import type { IntegrationCapabilities } from '../../../lib/research'
 import { authenticatedFetch } from '../../../lib/server-auth'
 

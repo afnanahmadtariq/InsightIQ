@@ -1,6 +1,9 @@
 import { ArrowUpRight, FileCheck2, Search } from 'lucide-react'
 import Link from 'next/link'
-import { EmptyState, MetricCard, MetricGrid, SecondaryAction, WorkspaceHeader, WorkspacePage, WorkspaceSection } from '../../../components/workspace-ui'
+import { ButtonLink } from '../../../components/ui/button'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { MetricCard, MetricGrid } from '../../../components/workspace/metric-card'
+import { WorkspaceHeader, WorkspacePage, WorkspaceSection } from '../../../components/workspace/workspace-page'
 import { formatConfidence, formatDate } from '../../../lib/format'
 import type { EvidenceLibraryResponse } from '../../../lib/research'
 import { authenticatedFetch } from '../../../lib/server-auth'
@@ -10,7 +13,7 @@ export default async function Page() {
   const citedSources = library.sources.filter((source) => source._count.evidence > 0).length
 
   return <WorkspacePage>
-    <WorkspaceHeader eyebrow="Evidence library" title="Trace every signal." lead="Public sources stay separate from normalized claims, so useful context never becomes a “fact” without provenance." action={<SecondaryAction href="/dashboard/research"><Search size={17}/>Research queue</SecondaryAction>}/>
+    <WorkspaceHeader eyebrow="Evidence library" title="Trace every signal." lead="Public sources stay separate from normalized claims, so useful context never becomes a “fact” without provenance." action={<ButtonLink href="/dashboard/research" variant="secondary"><Search size={17}/>Research queue</ButtonLink>}/>
     <MetricGrid>
       <MetricCard icon={<Search size={18}/>} value={library.sources.length} label="Collected sources"/>
       <MetricCard icon={<FileCheck2 size={18}/>} value={library.evidence.length} label="Verified claims"/>

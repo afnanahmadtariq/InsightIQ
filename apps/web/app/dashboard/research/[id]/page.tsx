@@ -3,7 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { ResearchRunActions } from '../../../../components/research-run-actions'
-import { EmptyState, PrimaryAction, StatusBadge, WorkspaceHeader, WorkspacePage, WorkspaceSection, WorkspaceSplit } from '../../../../components/workspace-ui'
+import { ButtonLink } from '../../../../components/ui/button'
+import { EmptyState } from '../../../../components/ui/empty-state'
+import { StatusBadge } from '../../../../components/ui/status-badge'
+import { WorkspaceHeader, WorkspacePage, WorkspaceSection, WorkspaceSplit } from '../../../../components/workspace/workspace-page'
 import { formatConfidence, formatDate } from '../../../../lib/format'
 import type { ResearchRunDetail } from '../../../../lib/research'
 import { authenticatedFetch } from '../../../../lib/server-auth'
@@ -23,7 +26,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const evidenceComplete = run.evidence.length > 0
 
   return <WorkspacePage>
-    <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 hover:text-brand" href="/dashboard/research"><ArrowLeft size={15}/>Research queue</Link>
+    <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Research queue</Link>
     <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} connected to <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
 
     <section className="grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 max-[700px]:grid-cols-1 max-[700px]:gap-0 [&>div]:bg-white [&>div]:p-[18px] max-[700px]:[&>div]:border-b max-[700px]:[&>div]:border-iq-200 [&_small]:mb-[7px] [&_small]:block [&_small]:text-[.68rem] [&_small]:tracking-[.08em] [&_small]:text-iq-500 [&_small]:uppercase [&_strong]:text-[.9rem] [&_strong]:text-iq-900 [&_strong]:capitalize">
@@ -65,7 +68,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <div><dt>Prospect</dt><dd>{run.prospect.name}</dd></div><div><dt>Company</dt><dd>{run.prospect.companyName || 'Not supplied'}</dd></div><div><dt>Offer</dt><dd>{run.offer.name}</dd></div><div><dt>Target persona</dt><dd>{run.offer.targetPersona || 'Not supplied'}</dd></div><div><dt>Goal</dt><dd>{run.goal === 'meeting' ? 'Prepare for a meeting' : 'Create personalized outreach'}</dd></div>
         </dl>
         <div><small className="text-[.66rem] tracking-[.07em] text-iq-500 uppercase">Value proposition</small><p className="mt-[7px] mb-[18px] text-[.78rem] leading-[1.55] text-iq-600">{run.offer.valueProposition}</p></div>
-        {run.brief && <PrimaryAction href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></PrimaryAction>}
+        {run.brief && <ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink>}
       </aside>
     </WorkspaceSplit>
   </WorkspacePage>

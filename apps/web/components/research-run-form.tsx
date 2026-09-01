@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { apiRequest } from '../lib/api-client'
 import type { ResearchRunSummary } from '../lib/research'
-import { Button, Field, FormMessage } from './ui'
+import { Button } from './ui/button'
+import { Field } from './ui/form-field'
+import { FormMessage } from './ui/form-message'
 
 export function ResearchRunForm() {
   const router = useRouter()

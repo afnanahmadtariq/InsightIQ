@@ -1,8 +1,5 @@
-'use client'
-
 import Image from 'next/image'
 import Link from 'next/link'
-import { FormEvent, useEffect, useState, type ReactNode } from 'react'
 import {
   FiArrowRight,
   FiCheck,
@@ -10,7 +7,6 @@ import {
   FiExternalLink,
   FiFileText,
   FiGlobe,
-  FiMail,
   FiSearch,
   FiShield,
   FiStar,
@@ -18,10 +14,15 @@ import {
   FiTrendingUp,
   FiUser,
 } from 'react-icons/fi'
+import { Eyebrow } from '../components/landing/eyebrow'
+import { FeatureCard, type LandingFeature } from '../components/landing/feature-card'
+import { LandingBrand } from '../components/landing/landing-brand'
+import { RevealObserver } from '../components/landing/reveal-observer'
+import { StepCard } from '../components/landing/step-card'
+import { WaitlistForm } from '../components/landing/waitlist-form'
+import { ButtonLink } from '../components/ui/button'
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://api-insightiq.zerotools.online'
-
-const features = [
+const features: LandingFeature[] = [
   { number: '01', icon: FiGlobe, title: 'Multi-source research', body: 'Resolve a prospect and research the public web in parallel.' },
   { number: '02', icon: FiTarget, title: 'Offer-aware intelligence', body: 'Match current signals to the value you actually sell.' },
   { number: '03', icon: FiFileText, title: 'Dynamic Deal Briefs', body: 'Get outreach, questions, objections, and next steps.' },
@@ -30,81 +31,17 @@ const features = [
 
 const audiences = ['B2B SaaS', 'Real estate', 'Luxury', 'Wealth management', 'Solopreneurs']
 
-function LandingBrand({ compact = false }: { compact?: boolean }) {
-  return <div className={`flex items-center gap-[9px] font-bold tracking-[-.035em] text-[#143b85] ${compact ? 'text-[.92rem] [&_img]:size-[29px]' : 'text-[1.08rem] [&_img]:size-9'}`}><Image className="rounded-[10px] object-cover" src="/insightiq-logo-padded.svg" alt="" width={42} height={42}/><span>InsightIQ</span></div>
-}
-
-function Eyebrow({ children, inverse = false }: { children: ReactNode; inverse?: boolean }) {
-  return <p className={`mb-[17px] flex items-center gap-[9px] text-[.68rem] font-semibold tracking-[.13em] uppercase ${inverse ? 'text-[#5ec1f2] [&>span]:bg-[#5ec1f2]' : 'text-[#1687dc] [&>span]:bg-[#28a5ef]'}`}><span className="h-0.5 w-[18px] rounded-full"/>{children}</p>
-}
-
-function StepCard({ number, icon, title, body, delay = '' }: { number: string; icon: ReactNode; title: string; body: string; delay?: string }) {
-  return <article className={`group relative min-h-[235px] rounded-[19px] border border-[#dce9f5] bg-white p-7 shadow-[0_12px_36px_rgb(37_83_141_/_5%)] transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1.5 hover:border-[#bdddf4] hover:shadow-[0_22px_48px_rgb(37_83_141_/_10%)] motion-reduce:transition-none max-[900px]:min-h-0 ${delay}`} data-reveal><span className="absolute top-[23px] right-6 text-[.68rem] font-semibold text-[#b4c3d6]">{number}</span><div className="mb-[38px] grid size-[46px] place-items-center rounded-[14px] bg-[linear-gradient(145deg,#e8f7ff,#eaf0fd)] text-[1.2rem] text-[#1689da] transition-transform duration-200 group-hover:-rotate-5 group-hover:scale-108 motion-reduce:transition-none max-[900px]:mb-[30px]">{icon}</div><h3 className="mt-0 mb-[11px] text-[1.12rem] text-[#244973]">{title}</h3><p className="m-0 text-[.96rem] leading-[1.6] text-[#7589a7]">{body}</p></article>
-}
-
-function FeatureCard({ feature, delay = '' }: { feature: (typeof features)[number]; delay?: string }) {
-  const Icon = feature.icon
-  return <article className={`relative rounded-[18px] border border-[#dce9f6] bg-white p-[30px] transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-[5px] hover:border-[#bdddf4] hover:shadow-[0_20px_44px_rgb(37_83_141_/_9%)] motion-reduce:transition-none ${delay}`} data-reveal><span className="absolute top-[25px] right-[27px] text-[.68rem] font-semibold text-[#9eb6cf]">{feature.number}</span><div className="grid size-[46px] place-items-center rounded-[14px] bg-[linear-gradient(145deg,#e7f7ff,#edf2fd)] text-[1.2rem] text-[#1689da]"><Icon/></div><h3 className="mt-7 mb-2.5 text-[1.15rem] text-[#244a78]">{feature.title}</h3><p className="m-0 max-w-[470px] text-[.98rem] leading-[1.6] text-[#7489a7]">{feature.body}</p></article>
-}
-
 export default function Home() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [formState, setFormState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
-  const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
-    elements.forEach((element) => element.classList.add('reveal-pending'))
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return
-        entry.target.classList.add('revealed')
-        observer.unobserve(entry.target)
-      })
-    }, { threshold: 0.14, rootMargin: '0px 0px -40px' })
-
-    elements.forEach((element) => observer.observe(element))
-    return () => observer.disconnect()
-  }, [])
-
-  async function joinWaitlist(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFormState('submitting')
-    setMessage('')
-
-    try {
-      const response = await fetch(`${apiUrl}/waitlist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email }),
-      })
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { message?: string } | null
-        throw new Error(payload?.message ?? 'We could not save your email. Please try again.')
-      }
-
-      setFormState('success')
-      setMessage('You’re on the list. We’ll send the first signal when InsightIQ is ready.')
-      setName('')
-      setEmail('')
-    } catch (error) {
-      setFormState('error')
-      setMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.')
-    }
-  }
-
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8fbff] font-sans text-[#122b57] scroll-smooth">
+      <RevealObserver/>
       <nav className="relative z-10 mx-auto flex w-[min(1180px,calc(100%_-_48px))] items-center justify-between py-6 max-[620px]:w-[calc(100%_-_36px)]" aria-label="Main navigation">
         <a className="no-underline" href="#top" aria-label="InsightIQ home"><LandingBrand/></a>
-        <div className="flex items-center gap-8 max-[620px]:gap-0 [&_a]:text-[.82rem] [&_a]:font-medium [&_a]:text-[#607696] [&_a]:no-underline [&_a]:transition-colors [&_a]:duration-150 [&_a:hover]:text-[#167fd2] max-[620px]:[&_a:not(:last-child)]:hidden">
+        <div className="flex items-center gap-8 max-[620px]:gap-0 [&_a]:text-[.82rem] [&_a]:font-medium [&_a]:text-[#607696] [&_a]:no-underline [&_a]:transition-colors [&_a]:duration-300 [&_a]:ease-fluid [&_a:hover]:text-[#167fd2] max-[620px]:[&_a:not(:last-child)]:hidden">
           <a href="#how-it-works">How it works</a>
           <a href="#features">Features</a>
           <Link href="/sign-in">Sign in</Link>
-          <a href="#waitlist" className="rounded-[10px] border border-[#cfe2f5] bg-white/72 px-[15px] py-2.5 text-[#1767ba]!">Join the waitlist</a>
+          <ButtonLink href="#waitlist" variant="secondary" size="xs" className="bg-white/72 text-[#1767ba]!">Join the waitlist</ButtonLink>
         </div>
       </nav>
 
@@ -114,7 +51,7 @@ export default function Home() {
           <h1>Know the prospect.<br /><em>Earn the conversation.</em></h1>
           <p className="mt-[30px] mb-[34px] max-w-[590px] text-[1.2rem] leading-[1.65] text-[#607899] max-[620px]:text-[.97rem]">Turn live public signals into tailored Deal Briefs—with a source behind every claim.</p>
           <div className="flex items-center gap-[22px] max-[620px]:flex-col max-[620px]:items-start max-[620px]:gap-3.5">
-            <a href="#waitlist" className="inline-flex items-center gap-[22px] rounded-xl bg-[linear-gradient(135deg,#219fe9,#194aab)] pt-[15px] pr-5 pb-[15px] pl-[22px] text-[.88rem] font-semibold text-white! no-underline transition-[filter] duration-200 hover:brightness-95 motion-reduce:transition-none [&_svg]:text-[1.05rem]">Get early access <FiArrowRight aria-hidden="true" /></a>
+            <ButtonLink href="#waitlist" size="md" className="gap-[22px] text-[.88rem]"><span>Get early access</span><FiArrowRight aria-hidden="true" /></ButtonLink>
             <span className="text-[.75rem] font-medium text-[#7a8fae]">Coming soon · Private beta</span>
           </div>
           <div className="mt-11 flex flex-wrap items-center gap-2 max-[620px]:mt-[34px] [&>span]:mr-[3px] [&>span]:text-[.66rem] [&>span]:font-semibold [&>span]:tracking-[.08em] [&>span]:text-[#8a9bb4] [&>span]:uppercase [&_b]:rounded-full [&_b]:border [&_b]:border-[#dce9f6] [&_b]:bg-white/72 [&_b]:px-[9px] [&_b]:py-1.5 [&_b]:text-[.65rem] [&_b]:font-medium [&_b]:text-[#6680a2]">
@@ -178,7 +115,7 @@ export default function Home() {
             <li><span><FiCheck /></span> Current research, not stale records</li>
           </ul>
         </div>
-        <div className="delay-one rounded-[21px] border border-[#d4e6f7] bg-white p-[25px] shadow-[0_26px_70px_rgb(35_83_145_/_10%)] max-[620px]:p-[19px] [&_article]:grid [&_article]:grid-cols-[auto_1fr_auto] [&_article]:items-center [&_article]:gap-[13px] [&_article]:border-b [&_article]:border-[#edf2f7] [&_article]:px-0.5 [&_article]:py-[17px] [&_article]:transition-[transform,background] [&_article]:duration-200 [&_article:hover]:translate-x-1 [&_article:hover]:bg-[#fbfdff] motion-reduce:[&_article]:transition-none [&_article_b]:text-[.86rem] [&_article_b]:text-[#31557f] [&_article_p]:mt-[3px] [&_article_p]:mb-0 [&_article_p]:text-[.75rem] [&_article_p]:text-[#8395ad]" data-reveal>
+        <div className="delay-one rounded-[21px] border border-[#d4e6f7] bg-white p-[25px] shadow-[0_26px_70px_rgb(35_83_145_/_10%)] max-[620px]:p-[19px] [&_article]:grid [&_article]:grid-cols-[auto_1fr_auto] [&_article]:items-center [&_article]:gap-[13px] [&_article]:border-b [&_article]:border-[#edf2f7] [&_article]:px-0.5 [&_article]:py-[17px] [&_article]:transition-[transform,background] [&_article]:duration-300 [&_article]:ease-fluid [&_article:hover]:translate-x-1 [&_article:hover]:bg-[#fbfdff] motion-reduce:[&_article]:transition-none [&_article_b]:text-[.86rem] [&_article_b]:text-[#31557f] [&_article_p]:mt-[3px] [&_article_p]:mb-0 [&_article_p]:text-[.75rem] [&_article_p]:text-[#8395ad]" data-reveal>
           <div className="flex justify-between border-b border-[#e5edf6] pb-[17px] text-[.84rem] font-semibold text-[#3d6089] [&_b]:text-[.75rem] [&_b]:text-[#1a8dd9]"><span>Evidence trail</span><b>5 sources</b></div>
           <article><span className="text-[.66rem] text-[#a3b2c5]">01</span><div><b>Company careers page</b><p>14 enterprise roles added across EMEA and APAC</p></div><span className="inline-flex items-center gap-[3px] rounded-full bg-[#edf9f4] px-[7px] py-[5px] text-[.58rem] font-semibold text-[#18825e] max-[620px]:hidden"><FiCheck/> Verified</span></article>
           <article><span className="text-[.66rem] text-[#a3b2c5]">02</span><div><b>Company newsroom</b><p>Expansion announced into two new markets</p></div><span className="inline-flex items-center gap-[3px] rounded-full bg-[#edf9f4] px-[7px] py-[5px] text-[.58rem] font-semibold text-[#18825e] max-[620px]:hidden"><FiCheck/> Verified</span></article>
@@ -201,7 +138,7 @@ export default function Home() {
         <div className="flex gap-1 overflow-x-auto border-b border-[#e3edf6] bg-[#f5f9fd] p-2.5 [&_span]:whitespace-nowrap [&_span]:rounded-lg [&_span]:px-[13px] [&_span]:py-[9px] [&_span]:text-[.78rem] [&_span]:font-medium [&_span]:text-[#8194ad] [&_span:first-child]:bg-white [&_span:first-child]:text-[#1a79c4] [&_span:first-child]:shadow-[0_3px_10px_rgb(44_82_128_/_8%)]"><span>Outreach brief</span><span>Meeting prep</span><span>Follow-up plan</span></div>
         <div className="grid grid-cols-[1fr_.85fr] items-center gap-[70px] p-[58px] max-[900px]:grid-cols-1 max-[900px]:gap-10 max-[620px]:px-6 max-[620px]:py-[34px] [&_h2]:m-0 [&_h2]:text-[clamp(2.45rem,4.5vw,4.2rem)] [&_h2]:leading-[1.03] [&_h2]:font-light [&_h2]:tracking-[-.06em] [&_h2]:text-[#153a73] [&>div:first-child>p:not(:first-child)]:mt-[23px] [&>div:first-child>p:not(:first-child)]:mb-0 [&>div:first-child>p:not(:first-child)]:max-w-[490px] [&>div:first-child>p:not(:first-child)]:text-[1.04rem] [&>div:first-child>p:not(:first-child)]:leading-[1.65] [&>div:first-child>p:not(:first-child)]:text-[#7288a6]">
           <div><Eyebrow>Dynamic by design</Eyebrow><h2>The right output for<br/>the conversation ahead.</h2><p>Choose the goal. Get the questions, messaging, and next actions that fit it.</p></div>
-          <div className="relative rounded-[17px] border border-[#dce9f5] bg-[#f9fbfe] p-[25px] transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:-rotate-1 hover:shadow-[0_18px_36px_rgb(35_83_145_/_10%)] motion-reduce:transition-none [&>span]:text-[.68rem] [&>span]:font-semibold [&>span]:tracking-[.08em] [&>span]:text-[#1c8bd5] [&>span]:uppercase [&>p]:my-5 [&>p]:text-[1.03rem] [&>p]:leading-[1.7] [&>p]:text-[#45658b] [&>div]:flex [&>div]:items-center [&>div]:justify-between [&>div]:border-t [&>div]:border-[#e1eaf4] [&>div]:pt-[15px] [&_b]:text-[.7rem] [&_b]:font-medium [&_b]:text-[#7f92aa] [&_div_span]:inline-flex [&_div_span]:items-center [&_div_span]:gap-1 [&_div_span]:text-[.7rem] [&_div_span]:font-semibold [&_div_span]:text-[#1985cf]"><span>Personalized opener</span><p>“Alex, I noticed Northstar is hiring across two new regions. At that stage, ramp consistency often becomes the constraint…”</p><div><b>Based on 3 verified signals</b><span><FiCopy/> Copy draft</span></div></div>
+          <div className="relative rounded-[17px] border border-[#dce9f5] bg-[#f9fbfe] p-[25px] transition-[transform,box-shadow] duration-300 ease-fluid hover:-translate-y-1 hover:shadow-card-hover motion-reduce:transition-none [&>span]:text-[.68rem] [&>span]:font-semibold [&>span]:tracking-[.08em] [&>span]:text-[#1c8bd5] [&>span]:uppercase [&>p]:my-5 [&>p]:text-[1.03rem] [&>p]:leading-[1.7] [&>p]:text-[#45658b] [&>div]:flex [&>div]:items-center [&>div]:justify-between [&>div]:border-t [&>div]:border-[#e1eaf4] [&>div]:pt-[15px] [&_b]:text-[.7rem] [&_b]:font-medium [&_b]:text-[#7f92aa] [&_div_span]:inline-flex [&_div_span]:items-center [&_div_span]:gap-1 [&_div_span]:text-[.7rem] [&_div_span]:font-semibold [&_div_span]:text-[#1985cf]"><span>Personalized opener</span><p>“Alex, I noticed Northstar is hiring across two new regions. At that stage, ramp consistency often becomes the constraint…”</p><div><b>Based on 3 verified signals</b><span><FiCopy/> Copy draft</span></div></div>
         </div>
       </section>
 
@@ -211,18 +148,7 @@ export default function Home() {
           <h2>Be first to turn signals<br />into conversations.</h2>
           <p>Join the private beta waitlist. We’ll reach out when early access opens—no noise, just the signal.</p>
         </div>
-        <form className="delay-one grid grid-cols-[1fr_1.25fr] gap-2.5 rounded-[20px] border border-white/13 bg-white/7 p-[26px] backdrop-blur-xl max-[620px]:grid-cols-1 [&_label]:text-[.74rem] [&_label]:font-medium [&_label]:text-[#bdd0e5] [&_label:nth-of-type(2)]:col-start-2 [&_label:nth-of-type(2)]:row-start-1 max-[620px]:[&_label:nth-of-type(2)]:col-start-1 max-[620px]:[&_label:nth-of-type(2)]:row-auto [&_label_span]:ml-[5px] [&_label_span]:text-[#7895b8] [&_input]:min-w-0 [&_input]:rounded-[10px] [&_input]:border [&_input]:border-white/15 [&_input]:bg-white/9 [&_input]:px-3.5 [&_input]:py-[15px] [&_input]:text-[.92rem] [&_input]:text-white! [&_input]:outline-none [&_input]:transition-colors [&_input]:duration-150 [&_input]:placeholder:text-[#7894b6] [&_input:focus]:border-[#4bb5ec] [&_input:focus]:bg-white/12 [&_button]:col-span-full [&_button]:mt-[5px] [&_button]:flex [&_button]:cursor-pointer [&_button]:items-center [&_button]:justify-center [&_button]:gap-[9px] [&_button]:rounded-[10px] [&_button]:border-0 [&_button]:bg-[linear-gradient(135deg,#37b5f3,#1b72c9)] [&_button]:p-[15px] [&_button]:text-[.92rem] [&_button]:font-semibold [&_button]:text-white! [&_button]:transition-[filter] [&_button]:duration-200 [&_button:not(:disabled):hover]:brightness-105 [&_button:disabled]:cursor-default [&_button:disabled]:opacity-72" data-reveal onSubmit={joinWaitlist}>
-          <label htmlFor="name">Your name <span>Optional</span></label>
-          <input id="name" name="name" type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Alex Morgan" maxLength={120} />
-          <label htmlFor="email">Work email</label>
-          <input id="email" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="alex@company.com" required maxLength={254} />
-          <button type="submit" disabled={formState === 'submitting' || formState === 'success'}>
-            <FiMail />
-            {formState === 'submitting' ? 'Joining…' : formState === 'success' ? 'You’re on the list' : 'Join the waitlist'}
-            {formState === 'idle' && <FiArrowRight />}
-          </button>
-          <p className={`col-span-full mt-0.5 mb-0 text-[.68rem] leading-[1.45] ${formState === 'error' ? 'text-[#ffb9bc]' : 'text-[#87a3c4]'}`} aria-live="polite">{message || 'By joining, you agree to receive occasional InsightIQ product updates.'}</p>
-        </form>
+        <WaitlistForm/>
       </section>
 
       <footer className="mx-auto flex w-[min(1180px,calc(100%_-_48px))] items-center justify-between py-[34px] max-[620px]:w-[calc(100%_-_36px)] max-[620px]:flex-col max-[620px]:items-start max-[620px]:gap-[11px] [&_p]:text-[.78rem] [&_p]:text-[#8294ac] max-[620px]:[&_p]:m-0 [&>span]:text-[.78rem] [&>span]:text-[#8294ac]">
