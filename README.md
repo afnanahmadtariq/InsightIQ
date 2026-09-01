@@ -14,12 +14,13 @@ Evidence-first AI sales intelligence for researching prospects, connecting publi
 
 ```bash
 cp .env.example .env
-npm install
-python3 -m pip install -e apps/worker
+npm install   # also creates apps/worker/.venv (requires Python 3)
 docker compose up -d postgres
 npm run db:migrate:dev
 npm run dev
 ```
+
+`npm install` runs `postinstall`, which sets up the Python worker venv. Re-run `npm run worker:setup` if you change worker dependencies.
 
 The web app runs on `http://localhost:3000` and the API on `http://localhost:3001` by default. Turbo also starts `@insightiq/worker`, which polls PostgreSQL for runs that already have sources.
 

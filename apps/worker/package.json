@@ -2,11 +2,12 @@
   "name": "@insightiq/worker",
   "private": true,
   "scripts": {
-    "dev": "env PYTHONPATH=src python3 -m insightiq_worker",
-    "build": "python3 -c \"import ast, pathlib; [ast.parse(p.read_text()) for p in pathlib.Path('src').rglob('*.py')]\"",
+    "setup": "sh scripts/setup.sh",
+    "dev": ".venv/bin/python -m insightiq_worker",
+    "build": ".venv/bin/python -c \"import ast, pathlib; [ast.parse(p.read_text()) for p in pathlib.Path('src').rglob('*.py')]\"",
     "clean": "python3 -c \"import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]\"",
-    "lint": "python3 -c \"import ast, pathlib; [ast.parse(p.read_text()) for p in list(pathlib.Path('src').rglob('*.py')) + list(pathlib.Path('test').rglob('*.py'))]\"",
+    "lint": ".venv/bin/python -c \"import ast, pathlib; [ast.parse(p.read_text()) for p in list(pathlib.Path('src').rglob('*.py')) + list(pathlib.Path('test').rglob('*.py'))]\"",
     "check-types": "npm run lint",
-    "test": "env PYTHONPATH=src python3 -m unittest discover -s test -t . -q"
+    "test": ".venv/bin/python -m unittest discover -s test -t . -q"
   }
 }
