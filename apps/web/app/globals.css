@@ -1,3 +1,22 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: Outfit, ui-sans-serif, system-ui, sans-serif;
+  --color-iq-950: var(--iq-950);
+  --color-iq-900: var(--iq-900);
+  --color-iq-700: var(--iq-700);
+  --color-iq-600: var(--iq-600);
+  --color-iq-500: var(--iq-500);
+  --color-iq-300: var(--iq-300);
+  --color-iq-200: var(--iq-200);
+  --color-iq-100: var(--iq-100);
+  --color-iq-50: var(--iq-50);
+  --color-brand: var(--brand);
+  --color-brand-bright: var(--brand-bright);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+}
+
 :root {
   --iq-950: #10264f;
   --iq-900: #12346f;

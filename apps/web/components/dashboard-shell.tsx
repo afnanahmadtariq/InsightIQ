@@ -38,8 +38,8 @@ export function DashboardShell({
     })
   }
 
-  return <div className={`${styles.shell} ${collapsed ? styles.collapsed : ''}`}>
-    <aside className={styles.sidebar}>
+  return <div className={`${styles.shell} min-h-screen bg-iq-50 ${collapsed ? styles.collapsed : ''}`}>
+    <aside className={`${styles.sidebar} flex flex-col`}>
       <div className={styles.sidebarHeader}>
         <Brand href="/dashboard"/>
         <button type="button" className={styles.collapseToggle} onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
@@ -58,7 +58,7 @@ export function DashboardShell({
     <div className={styles.stage}>
       <header className={styles.topbar}>
         <div><small>Active workspace</small><strong>{context.activeWorkspace.name}</strong></div>
-        <div className={styles.actions}>
+        <div className={`${styles.actions} flex items-center`}>
           <Popover.Root open={notificationsOpen} onOpenChange={setNotificationsOpen}>
             <Popover.Trigger asChild>
               <button type="button" className={styles.notification} aria-label={`${unreadNotifications} unread notifications`}>
@@ -66,7 +66,7 @@ export function DashboardShell({
               </button>
             </Popover.Trigger>
             <Popover.Portal>
-              <Popover.Content className={styles.notificationPanel} side="bottom" align="end" sideOffset={12} collisionPadding={20} aria-label="Notifications">
+              <Popover.Content className={`${styles.notificationPanel} z-50`} side="bottom" align="end" sideOffset={12} collisionPadding={20} aria-label="Notifications">
             <header><div><strong>Notifications</strong><small>{unreadNotifications ? `${unreadNotifications} unread` : 'You’re all caught up'}</small></div><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications">×</button></header>
             {notifications.length ? <div className={styles.notificationItems}>{notifications.slice(0, 5).map((item) => {
               const content = <><span className={styles.notificationItemIcon}>{item.readAt ? <Check size={15}/> : <Search size={15}/>}</span><span><strong>{item.title}</strong><small>{item.body}</small></span></>
