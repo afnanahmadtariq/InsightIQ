@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight, BriefcaseBusiness, Building2, Mail, UserRound } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, Building2, ChevronDown, Mail, UserRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { apiRequest } from '../lib/api-client'
@@ -61,7 +61,7 @@ export function ResearchRunForm() {
         <Field id="offer-name" name="offerName" label="Offer name" placeholder="Enterprise analytics platform" required/>
         <Field id="target-persona" name="targetPersona" label="Target persona (optional)" placeholder="VP Sales at B2B SaaS"/>
         <label className={styles.full}><span>Value proposition and context</span><textarea name="offerContext" minLength={20} maxLength={4000} placeholder="Explain the problem you solve, your strongest differentiators, and the outcome you create…" required/></label>
-        <label className={styles.full}><span>Research goal</span><select name="goal" defaultValue="meeting"><option value="meeting">Prepare for a meeting</option><option value="outreach">Create personalized outreach</option></select></label>
+        <label className={styles.full}><span>Research goal</span><span className={styles.selectWrap}><select name="goal" defaultValue="meeting"><option value="meeting">Prepare for a meeting</option><option value="outreach">Create personalized outreach</option></select><ChevronDown size={18} aria-hidden="true"/></span></label>
       </div>
     </section>
     {error && <p className={styles.error}>{error}</p>}

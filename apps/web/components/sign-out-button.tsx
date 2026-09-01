@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { authClient } from '../lib/auth-client'
 import { Button } from './ui'
 
-export function SignOutButton() {
+export function SignOutButton({ className = '' }: { className?: string }) {
   const router = useRouter()
-  return <Button variant="secondary" onClick={async () => { await authClient.signOut(); router.push('/'); router.refresh() }}><LogOut size={17}/>Sign out</Button>
+  return <Button variant="secondary" className={className} aria-label="Sign out" onClick={async () => { await authClient.signOut(); router.push('/'); router.refresh() }}><LogOut size={17}/><span>Sign out</span></Button>
 }

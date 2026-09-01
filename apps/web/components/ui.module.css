@@ -1,10 +1,11 @@
 .brand { display: inline-flex; align-items: center; gap: 9px; width: fit-content; color: inherit; font-weight: 750; letter-spacing: -.04em; }
 .brand img { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; }
 .brand span { font-size: 1.2rem; }
-.button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 19px; border: 1px solid transparent; border-radius: 12px; font-weight: 650; transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 19px; border: 1px solid transparent; border-radius: 12px; font-weight: 650; transition: background 160ms ease, border-color 160ms ease, filter 160ms ease; }
 .button:disabled { cursor: not-allowed; opacity: .55; }
-.primary { background: linear-gradient(135deg, #1c9eec, #16429b); color: white; box-shadow: 0 10px 24px rgb(24 112 204 / 20%); }
-.primary:hover { box-shadow: 0 14px 30px rgb(24 112 204 / 27%); }
+.button:focus-visible { outline: 3px solid rgb(22 140 229 / 22%); outline-offset: 2px; }
+.primary { background: linear-gradient(135deg, #1c9eec, #16429b); color: white; }
+.primary:hover:not(:disabled) { filter: brightness(.96); }
 .secondary { border-color: var(--iq-200); background: white; color: var(--iq-900); }
 .secondary:hover { border-color: var(--iq-300); background: var(--iq-50); }
 .field { display: grid; gap: 7px; }
