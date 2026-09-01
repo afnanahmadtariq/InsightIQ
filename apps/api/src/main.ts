@@ -4,9 +4,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import { config as loadEnvironment } from 'dotenv'
 import { resolve } from 'node:path'
 
-loadEnvironment({
-  path: [resolve(process.cwd(), '.env'), resolve(process.cwd(), '../../.env')],
-})
+loadEnvironment({ path: resolve(process.cwd(), '.env') })
+loadEnvironment({ path: resolve(process.cwd(), '../../.env') })
 
 async function bootstrap() {
   const { AppModule } = await import('./app.module')
