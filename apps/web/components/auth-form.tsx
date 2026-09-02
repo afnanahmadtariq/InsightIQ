@@ -69,6 +69,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     {mode === 'sign-in' && <label className="flex items-center gap-2 text-sm text-iq-600"><input className="size-4 accent-brand" type="checkbox" name="remember"/>Keep me signed in</label>}
     {error && <FormMessage tone="error" role="alert">{error}</FormMessage>}
     <Button className="w-full" type="submit" disabled={pending}>{pending ? 'Please wait…' : mode === 'sign-up' ? 'Create workspace' : 'Sign in'} {!pending && <ArrowRight size={18}/>}</Button>
+    {mode === 'sign-up' && <p className="m-0 text-center text-xs leading-relaxed text-iq-500">By creating an account, you agree to our <Link className="font-semibold text-brand" href="/terms">Terms</Link> and <Link className="font-semibold text-brand" href="/privacy">Privacy Policy</Link>.</p>}
     {googleEnabled && <><div className="flex items-center gap-3 text-sm text-iq-500 before:h-px before:flex-1 before:bg-iq-200 after:h-px after:flex-1 after:bg-iq-200">or</div><Button className="w-full" type="button" variant="secondary" onClick={google} disabled={pending}><GoogleMark/>Continue with Google</Button></>}
   </form>
 }
