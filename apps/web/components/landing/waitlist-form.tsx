@@ -52,6 +52,6 @@ export function WaitlistForm() {
       {formState === 'submitting' ? 'Joining…' : formState === 'success' ? 'You’re on the list' : 'Join the waitlist'}
       {formState === 'idle' && <ArrowRight size={17}/>} 
     </Button>
-    <p className={`col-span-full m-0 text-xs leading-relaxed ${formState === 'error' ? 'text-[#ffb9bc]' : 'text-iq-500'}`} aria-live="polite">{message || 'By joining, you agree to receive occasional InsightIQ product updates.'}</p>
+    <p className={`col-span-full m-0 text-xs leading-relaxed ${formState === 'error' ? 'text-[#ffb9bc]' : 'text-iq-500'}`} aria-live="polite">{message || <>By joining, you agree to receive occasional InsightIQ product updates. See our <a className="font-semibold text-sky underline-offset-2 hover:underline" href="/privacy">Privacy Policy</a>.</>}</p>
   </form>
 }

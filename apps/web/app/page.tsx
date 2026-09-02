@@ -100,6 +100,15 @@ export default function Home() {
       <WaitlistForm/>
     </section>
 
-    <footer className={`${container} flex items-center justify-between py-8 text-xs text-iq-500 max-sm:items-start max-sm:flex-col max-sm:gap-3`}><LandingBrand compact/><p className="m-0">Evidence-first intelligence for better conversations.</p><span>© 2026 InsightIQ</span></footer>
+    <footer className={`${container} flex flex-wrap items-center justify-between gap-4 py-8 text-xs text-iq-500 max-sm:items-start max-sm:flex-col`}>
+      <LandingBrand compact/>
+      <div className="flex flex-wrap gap-4">
+        <Link className="transition-colors hover:text-brand" href="/about">About</Link>
+        <Link className="transition-colors hover:text-brand" href="/privacy">Privacy</Link>
+        <Link className="transition-colors hover:text-brand" href="/terms">Terms</Link>
+        <Link className="transition-colors hover:text-brand" href="/contact">Contact</Link>
+      </div>
+      <span>© 2026 InsightIQ</span>
+    </footer>
   </main>
 }
