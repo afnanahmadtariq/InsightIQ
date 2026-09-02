@@ -4,53 +4,64 @@ import argparse
 import json
 import sys
 
-from insightiq_worker.extract import extract_claims, merge_claim_lists
-from insightiq_worker.fetch import fetch_page_text, wikipedia_summary
+from insightiq_worker.fetch import company_news_urls, fetch_page_text, wikipedia_resolve
 from insightiq_worker.graph_brief import build_brief_graph, new_id
 from insightiq_worker.graph_evidence import build_evidence_graph
+from insightiq_worker.llm import llm_enabled
 from insightiq_worker.models import RunContext, SourceBundle
+from insightiq_worker.tavily import discover_sources, tavily_configured
 
 
-def collect_public_profile(prospect_name: str, company_name: str | None, *, use_crawl4ai: bool) -> dict:
+def _wiki_sources(prospect_name: str, company_name: str | None, *, use_crawl4ai: bool) -> list[SourceBundle]:
     bundles: list[SourceBundle] = []
-    wiki_text, wiki_url = wikipedia_summary(company_name or prospect_name)
-    if wiki_text:
-        bundles.append(
-            SourceBundle(
-                source_id='wiki-company',
-                url=wiki_url or f'https://en.wikipedia.org/wiki/{(company_name or prospect_name).replace(" ", "_")}',
-                title=f'Wikipedia · {company_name or prospect_name}',
-                text=wiki_text,
-                score=0.7,
+    hints = tuple(token for token in (prospect_name.split()[-1], 'technology', 'company') if token)
+
+    if company_name:
+        company_query = company_name if ' ' in company_name.strip() else f'{company_name} Inc.'
+        company_text, company_url, company_title = wikipedia_resolve(company_query, hints=hints)
+        if company_text:
+            bundles.append(
+                SourceBundle(
+                    source_id='wiki-company',
+                    url=company_url or '',
+                    title=f'Wikipedia · {company_title}',
+                    text=company_text,
+                    score=0.82,
+                )
             )
-        )
-    person_text, person_url = wikipedia_summary(prospect_name)
-    if person_text and person_url != (wiki_url or ''):
+        for url in company_news_urls(company_name):
+            fetched = fetch_page_text(url, prefer_crawl4ai=use_crawl4ai)
+            if len(fetched) > 180:
+                bundles.append(
+                    SourceBundle(
+                        source_id='web-news',
+                        url=url,
+                        title=f'{company_name} newsroom',
+                        text=fetched,
+                        score=0.68,
+                    )
+                )
+                break
+
+    person_text, person_url, person_title = wikipedia_resolve(prospect_name, hints=hints)
+    if person_text and person_url not in {item.url for item in bundles}:
         bundles.append(
             SourceBundle(
                 source_id='wiki-person',
                 url=person_url or '',
-                title=f'Wikipedia · {prospect_name}',
+                title=f'Wikipedia · {person_title}',
                 text=person_text,
-                score=0.75,
+                score=0.88,
             )
         )
+    return bundles
 
-    if company_name:
-        domain_guess = company_name.lower().replace(' ', '')
-        for url in (f'https://{domain_guess}.com/about', f'https://www.{domain_guess}.com/about'):
-            fetched = fetch_page_text(url, prefer_crawl4ai=use_crawl4ai)
-            if len(fetched) > 120:
-                bundles.append(
-                    SourceBundle(
-                        source_id=f'web-{len(bundles)}',
-                        url=url,
-                        title=f'{company_name} about page',
-                        text=fetched,
-                        score=0.55,
-                    )
-                )
-                break
+
+def collect_public_profile(prospect_name: str, company_name: str | None, *, use_crawl4ai: bool) -> dict:
+    bundles = discover_sources(prospect_name, company_name) if tavily_configured() else []
+    source_mode = 'tavily' if bundles else 'wikipedia'
+    if not bundles:
+        bundles = _wiki_sources(prospect_name, company_name, use_crawl4ai=use_crawl4ai)
 
     context = RunContext(
         run_id='demo',
@@ -84,6 +95,8 @@ def collect_public_profile(prospect_name: str, company_name: str | None, *, use_
     return {
         'prospect': prospect_name,
         'company': company_name,
+        'source_mode': source_mode,
+        'llm_enabled': llm_enabled(),
         'sources_collected': len(bundles),
         'claims_extracted': len(stored),
         'claims': stored,
@@ -101,7 +114,9 @@ def main(argv: list[str] | None = None) -> int:
     payload = collect_public_profile(args.prospect, args.company, use_crawl4ai=args.crawl4ai)
     print(json.dumps(payload, indent=2))
     print(
-        f"\nCollected {payload['sources_collected']} source(s) and {payload['claims_extracted']} claim(s) for {payload['prospect']}.",
+        f"\nCollected {payload['sources_collected']} source(s) via {payload['source_mode']}"
+        f" and {payload['claims_extracted']} claim(s) for {payload['prospect']}"
+        f" (llm={'on' if payload['llm_enabled'] else 'off'}).",
         file=sys.stderr,
     )
     return 0

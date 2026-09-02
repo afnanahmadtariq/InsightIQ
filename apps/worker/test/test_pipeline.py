@@ -1,9 +1,32 @@
 import unittest
 
 from insightiq_worker.extract import classify_sentence, extract_claims, merge_claim_lists
+from insightiq_worker.llm import llm_enabled
+from insightiq_worker.tavily import build_discovery_queries, tavily_configured
 from insightiq_worker.graph_brief import build_brief_graph, citation_gate, new_id
 from insightiq_worker.models import BriefCitation, BriefSections, RunContext
 
+
+class TavilyTest(unittest.TestCase):
+    def test_builds_bounded_discovery_queries(self):
+        queries = build_discovery_queries('Jane Doe', 'Northstar', 'northstar.io')
+        self.assertGreaterEqual(len(queries), 2)
+        joined = ' '.join(item['query'] for item in queries)
+        self.assertIn('Jane Doe', joined)
+        self.assertIn('Northstar', joined)
+
+
+class LlmTest(unittest.TestCase):
+    def test_llm_disabled_without_keys(self):
+        import os
+
+        saved = {key: os.environ.pop(key, None) for key in ('OPENAI_API_KEY', 'DASHSCOPE_API_KEY')}
+        try:
+            self.assertFalse(llm_enabled())
+        finally:
+            for key, value in saved.items():
+                if value is not None:
+                    os.environ[key] = value
 
 class ExtractTest(unittest.TestCase):
     def test_classifies_hiring_sentence(self):
@@ -21,7 +44,20 @@ class ExtractTest(unittest.TestCase):
         claims = extract_claims(text, prospect_name='Satya Nadella', company_name='Microsoft', source_score=0.8)
         self.assertTrue(claims)
         self.assertLessEqual(len(claims), 3)
-        self.assertGreaterEqual(claims[0].confidence, 0.4)
+        self.assertGreaterEqual(claims[0].confidence, 0.55)
+        self.assertTrue(any('Nadella' in claim.claim or 'Microsoft' in claim.claim for claim in claims))
+
+    def test_rejects_fruit_and_boilerplate_noise(self):
+        text = (
+            'An apple is the round, edible fruit of an apple tree. '
+            'Or call 1-800-MY-APPLE (1-800-692-7753). '
+            'Timothy Donald Cook is the chief executive officer of Apple Inc.'
+        )
+        claims = extract_claims(text, prospect_name='Tim Cook', company_name='Apple', source_score=0.8)
+        joined = ' '.join(claim.claim for claim in claims)
+        self.assertNotIn('edible fruit', joined.lower())
+        self.assertNotIn('1-800', joined)
+        self.assertIn('Cook', joined)
 
     def test_merge_deduplicates_claims(self):
         first = extract_claims('Microsoft is hiring cloud engineers in Seattle.', prospect_name='Tim Cook', company_name='Microsoft')

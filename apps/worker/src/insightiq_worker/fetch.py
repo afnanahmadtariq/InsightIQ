@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 from html import unescape
+from urllib.parse import quote
 
 import httpx
 from bs4 import BeautifulSoup
@@ -13,11 +14,14 @@ log = logging.getLogger('insightiq.worker.fetch')
 USER_AGENT = 'InsightIQ-Research/0.1 (+https://insightiq.app)'
 TRACKING = re.compile(r'\s+')
 MAX_TEXT = 12_000
+WIKI_API = 'https://en.wikipedia.org/w/api.php'
+WRONG_TOPIC = ('fruit', 'plant', 'album', 'film', 'song', 'disambiguation')
+BUSINESS_TOPIC = ('inc.', 'inc', 'company', 'corporation', 'technology', 'software', 'chief executive')
 
 
 def strip_html(raw: str) -> str:
     soup = BeautifulSoup(raw, 'html.parser')
-    for tag in soup(['script', 'style', 'noscript', 'svg']):
+    for tag in soup(['script', 'style', 'noscript', 'svg', 'nav', 'footer', 'header']):
         tag.decompose()
     text = unescape(soup.get_text('\n', strip=True))
     return TRACKING.sub(' ', text).strip()
@@ -79,15 +83,97 @@ def fetch_page_text(url: str, *, prefer_crawl4ai: bool = False) -> str:
         return ''
 
 
-def wikipedia_summary(title: str) -> tuple[str, str | None]:
-    slug = title.strip().replace(' ', '_')
-    url = f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}'
-    with httpx.Client(timeout=15.0, headers={'User-Agent': USER_AGENT}) as client:
-        response = client.get(url)
-        if response.status_code == 404:
-            return '', None
-        response.raise_for_status()
-        payload = response.json()
+def _wiki_search(client: httpx.Client, term: str, limit: int = 5) -> list[dict]:
+    response = client.get(
+        WIKI_API,
+        params={'action': 'query', 'list': 'search', 'srsearch': term, 'format': 'json', 'srlimit': limit},
+    )
+    response.raise_for_status()
+    return response.json().get('query', {}).get('search', [])
+
+
+def _score_wikipedia_hit(hit: dict, hints: tuple[str, ...], query: str) -> int:
+    title = str(hit.get('title', '')).lower()
+    snippet = re.sub(r'<[^>]+>', ' ', str(hit.get('snippet', ''))).lower()
+    query_lower = query.strip().lower()
+    if title == query_lower:
+        return 100
+    score = 0
+    if any(token in title for token in BUSINESS_TOPIC):
+        score += 4
+    if any(token in snippet for token in BUSINESS_TOPIC):
+        score += 2
+    for hint in hints:
+        token = hint.lower().strip()
+        if len(token) >= 3 and (token in title or token in snippet):
+            score += 3
+    name_parts = [part for part in query_lower.split() if len(part) >= 3]
+    if name_parts:
+        if all(part in title for part in name_parts):
+            score += 8
+        elif any(part in title for part in name_parts):
+            score += 4
+        else:
+            score -= 8
+    if any(token in title for token in WRONG_TOPIC):
+        score -= 6
+    if any(token in snippet for token in ('edible fruit', 'apple tree', 'fruit tree', 'genus malus')):
+        score -= 6
+    return score
+
+
+def _wiki_summary_by_title(client: httpx.Client, title: str) -> tuple[str, str | None]:
+    slug = quote(title.replace(' ', '_'), safe='/_')
+    response = client.get(f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}')
+    if response.status_code == 404:
+        return '', None
+    response.raise_for_status()
+    payload = response.json()
     extract = str(payload.get('extract') or '').strip()
     page_url = payload.get('content_urls', {}).get('desktop', {}).get('page')
     return extract[:MAX_TEXT], page_url
+
+
+def wikipedia_resolve(query: str, *, hints: tuple[str, ...] = ()) -> tuple[str, str | None, str]:
+    cleaned = query.strip()
+    if not cleaned:
+        return '', None, ''
+    searches = [cleaned]
+    if ' ' not in cleaned:
+        searches = [f'{cleaned} Inc.', cleaned]
+
+    with httpx.Client(timeout=15.0, headers={'User-Agent': USER_AGENT}) as client:
+        direct_extract, direct_url = _wiki_summary_by_title(client, cleaned.replace(' ', '_'))
+        if direct_extract:
+            return direct_extract, direct_url, cleaned
+
+        best_hit: dict | None = None
+        best_score = -999
+        for term in searches:
+            for hit in _wiki_search(client, term):
+                score = _score_wikipedia_hit(hit, hints, cleaned)
+                if score > best_score:
+                    best_score = score
+                    best_hit = hit
+        if best_hit and best_score > 0:
+            title = str(best_hit['title'])
+            extract, page_url = _wiki_summary_by_title(client, title)
+            if extract:
+                return extract, page_url, title
+    return '', None, ''
+
+
+def wikipedia_summary(title: str) -> tuple[str, str | None]:
+    extract, page_url, _ = wikipedia_resolve(title)
+    return extract, page_url
+
+
+def company_news_urls(company_name: str) -> list[str]:
+    slug = re.sub(r'[^a-z0-9]', '', company_name.lower())
+    if not slug:
+        return []
+    return [
+        f'https://www.{slug}.com/newsroom/',
+        f'https://{slug}.com/newsroom/',
+        f'https://www.{slug}.com/leadership/',
+    ]

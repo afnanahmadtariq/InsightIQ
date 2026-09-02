@@ -6,6 +6,7 @@ from langgraph.graph import END, START, StateGraph
 
 from insightiq_worker.extract import extract_claims
 from insightiq_worker.fetch import fetch_page_text
+from insightiq_worker.llm import refine_claims
 from insightiq_worker.models import EvidenceDraft, RunContext, SourceBundle
 
 
@@ -52,11 +53,18 @@ def extract_from_sources(state: EvidenceState) -> EvidenceState:
     return {**state, 'drafts': drafts}
 
 
+def refine_with_llm(state: EvidenceState) -> EvidenceState:
+    refined = refine_claims(state['context'], state['sources'], state['drafts'])
+    return {**state, 'drafts': refined}
+
+
 def build_evidence_graph():
     graph = StateGraph(EvidenceState)
     graph.add_node('enrich', enrich_sources)
     graph.add_node('extract', extract_from_sources)
+    graph.add_node('refine', refine_with_llm)
     graph.add_edge(START, 'enrich')
     graph.add_edge('enrich', 'extract')
-    graph.add_edge('extract', END)
+    graph.add_edge('extract', 'refine')
+    graph.add_edge('refine', END)
     return graph.compile()
