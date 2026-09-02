@@ -13,7 +13,6 @@
     "check-types": "turbo run check-types",
     "test": "turbo run test",
     "clean": "turbo run clean && rimraf .turbo",
-    "postinstall": "npm run worker:setup",
     "worker:setup": "npm run setup --workspace=@insightiq/worker",
     "db:generate": "npm run db:generate --workspace=@insightiq/db",
     "db:migrate": "npm run db:migrate --workspace=@insightiq/db",
@@ -24,7 +23,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "@eslint/eslintrc": "^3.3.3",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.4",
     "rimraf": "^6.1.3",

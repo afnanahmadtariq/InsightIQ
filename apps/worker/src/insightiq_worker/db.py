@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import uuid4
@@ -46,6 +47,13 @@ class Worker:
     def from_env(cls) -> Worker:
         return cls(load_database_url())
 
+    def check_connection(self) -> None:
+        import psycopg
+
+        with psycopg.connect(self.database_url) as connection:
+            connection.execute('SET statement_timeout = 15000')
+            connection.execute('SELECT 1').fetchone()
+
     def poll_once(self) -> bool:
         import psycopg
 
@@ -54,26 +62,70 @@ class Worker:
             claimed = connection.execute(CLAIM_SQL, (self.lock_for, self.worker_id)).fetchone()
             if not claimed:
                 connection.commit()
+                log.debug('poll finished worker_id=%s outcome=idle', self.worker_id)
                 return False
-            run_id, organization_id, status, _attempt_count = claimed
+            started_at = time.monotonic()
+            run_id, organization_id, status, attempt_count = claimed
+            log.info(
+                'job claimed worker_id=%s run_id=%s workspace_id=%s status=%s attempt=%s',
+                self.worker_id,
+                run_id,
+                organization_id,
+                status,
+                attempt_count,
+            )
             try:
                 sources, evidence, has_brief = connection.execute(
                     COUNTS_SQL,
                     (run_id, organization_id, run_id, organization_id, run_id, organization_id),
                 ).fetchone()
                 stage = next_stage(status, sources, evidence, bool(has_brief))
+                log.info(
+                    'job inspected worker_id=%s run_id=%s workspace_id=%s sources=%s evidence=%s has_brief=%s next_stage=%s',
+                    self.worker_id,
+                    run_id,
+                    organization_id,
+                    sources,
+                    evidence,
+                    bool(has_brief),
+                    stage or 'none',
+                )
                 if stage is None:
                     connection.execute(BACKOFF_SQL, (self.backoff_for, run_id, organization_id))
                     connection.commit()
+                    elapsed_ms = round((time.monotonic() - started_at) * 1000)
+                    log.info(
+                        'job cycle finished worker_id=%s run_id=%s workspace_id=%s outcome=deferred reason=no_pending_stage retry_in=%s duration_ms=%s',
+                        self.worker_id,
+                        run_id,
+                        organization_id,
+                        self.backoff_for,
+                        elapsed_ms,
+                    )
                     return True
                 # ponytail: evidence/brief models are not in this worker yet; hold the row briefly so the loop does not spin.
-                log.info('deferred %s for run %s in workspace %s', stage, run_id, organization_id)
                 connection.execute(BACKOFF_SQL, (self.backoff_for, run_id, organization_id))
                 connection.commit()
+                elapsed_ms = round((time.monotonic() - started_at) * 1000)
+                log.info(
+                    'job cycle finished worker_id=%s run_id=%s workspace_id=%s stage=%s outcome=deferred reason=processor_not_implemented retry_in=%s duration_ms=%s',
+                    self.worker_id,
+                    run_id,
+                    organization_id,
+                    stage,
+                    self.backoff_for,
+                    elapsed_ms,
+                )
                 return True
             except Exception as error:
                 message = str(error)[:1000]
-                log.exception('worker failed on run %s', run_id)
+                log.exception(
+                    'job failed worker_id=%s run_id=%s workspace_id=%s error=%s',
+                    self.worker_id,
+                    run_id,
+                    organization_id,
+                    message,
+                )
                 connection.execute(FAIL_SQL, (message, run_id, organization_id))
                 connection.commit()
                 return True

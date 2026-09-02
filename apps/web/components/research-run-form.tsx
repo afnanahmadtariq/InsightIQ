@@ -1,12 +1,13 @@
 'use client'
 
-import { ArrowRight, BriefcaseBusiness, Building2, Mail, UserRound } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, Building2, ChevronDown, Mail, UserRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { apiRequest } from '../lib/api-client'
 import type { ResearchRunSummary } from '../lib/research'
-import { Button, Field } from './ui'
-import styles from './research.module.css'
+import { Button } from './ui/button'
+import { Field } from './ui/form-field'
+import { FormMessage } from './ui/form-message'
 
 export function ResearchRunForm() {
   const router = useRouter()
@@ -43,10 +44,15 @@ export function ResearchRunForm() {
     }
   }
 
-  return <form className={styles.form} onSubmit={submit}>
-    <section>
-      <div className={styles.sectionHead}><UserRound/><div><h2>Who are you researching?</h2><p>Add any identifiers you already trust.</p></div></div>
-      <div className={styles.grid}>
+  const cardClass = 'rounded-[18px] border border-iq-200 bg-white p-6 shadow-card max-[700px]:p-5'
+  const gridClass = 'grid grid-cols-2 gap-4 max-[700px]:grid-cols-1'
+  const labelClass = 'col-span-full grid gap-2 text-sm font-semibold text-iq-700'
+  const controlClass = 'w-full rounded-xl border border-iq-300 bg-white px-3.5 py-3 text-iq-950 outline-none transition focus:border-brand-bright focus:ring-3 focus:ring-brand-bright/10'
+
+  return <form className="grid gap-[18px]" onSubmit={submit}>
+    <section className={cardClass}>
+      <FormSectionHeader icon={<UserRound/>} title="Who are you researching?" description="Add any identifiers you already trust."/>
+      <div className={gridClass}>
         <Field id="prospect-name" name="prospectName" label="Prospect name" placeholder="Maya Chen" required icon={<UserRound size={18}/>}/>
         <Field id="prospect-email" name="prospectEmail" type="email" label="Email (optional)" placeholder="maya@company.com" icon={<Mail size={18}/>}/>
         <Field id="company-name" name="companyName" label="Company (optional)" placeholder="Northstar Labs" icon={<Building2 size={18}/>}/>
@@ -55,16 +61,20 @@ export function ResearchRunForm() {
         <Field id="x-handle" name="xHandle" label="X handle (optional)" placeholder="@mayachen"/>
       </div>
     </section>
-    <section>
-      <div className={styles.sectionHead}><BriefcaseBusiness/><div><h2>What are you selling?</h2><p>Give the agent enough context to find meaningful alignment.</p></div></div>
-      <div className={styles.grid}>
+    <section className={cardClass}>
+      <FormSectionHeader icon={<BriefcaseBusiness/>} title="What are you selling?" description="Give the agent enough context to find meaningful alignment."/>
+      <div className={gridClass}>
         <Field id="offer-name" name="offerName" label="Offer name" placeholder="Enterprise analytics platform" required/>
         <Field id="target-persona" name="targetPersona" label="Target persona (optional)" placeholder="VP Sales at B2B SaaS"/>
-        <label className={styles.full}><span>Value proposition and context</span><textarea name="offerContext" minLength={20} maxLength={4000} placeholder="Explain the problem you solve, your strongest differentiators, and the outcome you create…" required/></label>
-        <label className={styles.full}><span>Research goal</span><select name="goal" defaultValue="meeting"><option value="meeting">Prepare for a meeting</option><option value="outreach">Create personalized outreach</option></select></label>
+        <label className={labelClass}><span>Value proposition and context</span><textarea className={`${controlClass} min-h-[130px] resize-y leading-relaxed`} name="offerContext" minLength={20} maxLength={4000} placeholder="Explain the problem you solve, your strongest differentiators, and the outcome you create…" required/></label>
+        <label className={labelClass}><span>Research goal</span><span className="relative block"><select className={`${controlClass} appearance-none pr-11`} name="goal" defaultValue="meeting"><option value="meeting">Prepare for a meeting</option><option value="outreach">Create personalized outreach</option></select><ChevronDown className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-iq-600" size={18} aria-hidden="true"/></span></label>
       </div>
     </section>
-    {error && <p className={styles.error}>{error}</p>}
-    <Button type="submit" disabled={pending}>{pending ? 'Queuing research…' : 'Start research run'}{!pending && <ArrowRight size={18}/>}</Button>
+    {error && <FormMessage tone="error" className="text-[.8rem]">{error}</FormMessage>}
+    <Button className="min-w-[210px] justify-self-start" type="submit" disabled={pending}>{pending ? 'Queuing research…' : 'Start research run'}{!pending && <ArrowRight size={18}/>}</Button>
   </form>
+}
+
+function FormSectionHeader({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
+  return <header className="mb-6 flex gap-3 text-brand-bright"><span>{icon}</span><div><h2 className="m-0 text-lg text-iq-900">{title}</h2><p className="mt-1 mb-0 text-sm text-iq-600">{description}</p></div></header>
 }

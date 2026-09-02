@@ -4,10 +4,11 @@
   "main": "dist/src/index.js",
   "types": "src/index.ts",
   "scripts": {
-    "db:generate": "prisma generate",
+    "generate": "prisma generate",
+    "db:generate": "npm run generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
-    "build": "prisma generate && tsc",
+    "build": "tsc",
     "clean": "rimraf dist generated",
     "lint": "eslint .",
     "check-types": "tsc --noEmit"

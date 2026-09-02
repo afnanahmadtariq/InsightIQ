@@ -6,9 +6,9 @@
     "build": "nest build",
     "clean": "rimraf dist",
     "start": "node dist/main.js",
-    "test": "npm run build && node --test test/*.test.cjs",
+    "test": "node --test test/*.test.cjs",
     "lint": "eslint \"{src,test}/**/*.ts\"",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit --incremental false"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.2",

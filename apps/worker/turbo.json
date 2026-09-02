@@ -3,6 +3,16 @@
   "tasks": {
     "build": {
       "outputs": []
+    },
+    "dev": {
+      "env": [
+        "DATABASE_URL",
+        "WORKER_LOG_LEVEL",
+        "WORKER_POLL_SECONDS",
+        "WORKER_HEARTBEAT_SECONDS",
+        "WORKER_LOCK_INTERVAL",
+        "WORKER_BACKOFF_INTERVAL"
+      ]
     }
   }
 }

@@ -3,9 +3,9 @@
 import { LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '../lib/auth-client'
-import { Button } from './ui'
+import { Button } from './ui/button'
 
-export function SignOutButton() {
+export function SignOutButton({ compact = false }: { compact?: boolean }) {
   const router = useRouter()
-  return <Button variant="secondary" onClick={async () => { await authClient.signOut(); router.push('/'); router.refresh() }}><LogOut size={17}/>Sign out</Button>
+  return <Button variant="danger" size={compact ? 'icon' : 'sm'} className={compact ? 'self-center' : 'w-full'} aria-label="Sign out" onClick={async () => { await authClient.signOut(); router.push('/'); router.refresh() }}><LogOut size={17}/>{!compact && <span>Sign out</span>}</Button>
 }
