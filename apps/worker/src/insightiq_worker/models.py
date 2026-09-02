@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -66,7 +66,7 @@ class BriefSections(BaseModel):
     key_signals: list[BriefCitation]
     talking_points: list[str]
     questions_to_ask: list[str] = Field(default_factory=list)
-    outreach_draft: str | None = None
+    outreach_draft: Optional[str] = None
     gaps: list[str] = Field(default_factory=list)
 
 
@@ -74,8 +74,8 @@ class RunContext(BaseModel):
     run_id: str
     organization_id: str
     goal: Literal['outreach', 'meeting']
-    created_by_id: str | None
+    created_by_id: Optional[str]
     prospect_name: str
-    company_name: str | None
+    company_name: Optional[str]
     offer_name: str
     value_proposition: str

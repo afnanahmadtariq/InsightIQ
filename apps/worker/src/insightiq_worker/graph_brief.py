@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Optional, TypedDict
 from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
@@ -21,8 +21,8 @@ class StoredEvidence(TypedDict):
 class BriefState(TypedDict):
     context: RunContext
     evidence: list[StoredEvidence]
-    sections: BriefSections | None
-    error: str | None
+    sections: Optional[BriefSections]
+    error: Optional[str]
 
 
 def assemble_sections(state: BriefState) -> BriefState:
