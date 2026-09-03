@@ -50,6 +50,19 @@ SET
 WHERE id = %s AND "organizationId" = %s AND status = 'running'
 """
 
+FETCH_SOURCES_SQL = """
+SELECT id, url, title, publisher, excerpt
+FROM evidence_source
+WHERE "researchRunId" = %s AND "organizationId" = %s
+ORDER BY "retrievedAt" ASC
+"""
+
+INSERT_EVIDENCE_SQL = """
+INSERT INTO evidence
+  (id, "organizationId", "researchRunId", "sourceId", claim, "signalType", confidence, "observedAt")
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
 
 def next_stage(status: str, sources: int, evidence: int, has_brief: bool) -> str | None:
     if status != 'running' or sources < 1:

@@ -4,12 +4,27 @@ import logging
 import os
 import time
 from pathlib import Path
+from typing import Callable
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import uuid4
 
-from insightiq_worker.pipeline import BACKOFF_SQL, CLAIM_SQL, COUNTS_SQL, FAIL_SQL, next_stage
+from insightiq_worker import evidence
+from insightiq_worker.model_gateway import ModelGatewayConfig, StructuredOutputError, build_client
+from insightiq_worker.pipeline import (
+    BACKOFF_SQL,
+    CLAIM_SQL,
+    COUNTS_SQL,
+    FAIL_SQL,
+    FETCH_SOURCES_SQL,
+    INSERT_EVIDENCE_SQL,
+    next_stage,
+)
 
 log = logging.getLogger('insightiq.worker')
+
+
+def _generate_evidence_id() -> str:
+    return uuid4().hex
 
 
 def postgres_url(url: str) -> str:
@@ -37,11 +52,17 @@ def load_database_url() -> str:
 
 
 class Worker:
-    def __init__(self, database_url: str, worker_id: str | None = None):
+    def __init__(
+        self,
+        database_url: str,
+        worker_id: str | None = None,
+        model_client_factory: Callable[[ModelGatewayConfig], object] | None = None,
+    ):
         self.database_url = database_url
         self.worker_id = worker_id or uuid4().hex[:12]
         self.lock_for = os.environ.get('WORKER_LOCK_INTERVAL', '10 minutes')
         self.backoff_for = os.environ.get('WORKER_BACKOFF_INTERVAL', '30 seconds')
+        self._model_client_factory = model_client_factory or build_client
 
     @classmethod
     def from_env(cls) -> Worker:
@@ -103,7 +124,20 @@ class Worker:
                         elapsed_ms,
                     )
                     return True
-                # ponytail: evidence/brief models are not in this worker yet; hold the row briefly so the loop does not spin.
+                if stage == 'evidence':
+                    self._run_evidence_stage(connection, run_id, organization_id)
+                    connection.commit()
+                    elapsed_ms = round((time.monotonic() - started_at) * 1000)
+                    log.info(
+                        'job cycle finished worker_id=%s run_id=%s workspace_id=%s stage=%s outcome=advanced duration_ms=%s',
+                        self.worker_id,
+                        run_id,
+                        organization_id,
+                        stage,
+                        elapsed_ms,
+                    )
+                    return True
+                # ponytail: the brief model is not in this worker yet; hold the row briefly so the loop does not spin.
                 connection.execute(BACKOFF_SQL, (self.backoff_for, run_id, organization_id))
                 connection.commit()
                 elapsed_ms = round((time.monotonic() - started_at) * 1000)
@@ -129,3 +163,54 @@ class Worker:
                 connection.execute(FAIL_SQL, (message, run_id, organization_id))
                 connection.commit()
                 return True
+
+    def _run_evidence_stage(self, connection, run_id: str, organization_id: str) -> None:
+        source_rows = connection.execute(FETCH_SOURCES_SQL, (run_id, organization_id)).fetchall()
+        sources = [
+            {'id': source_id, 'url': url, 'title': title, 'publisher': publisher, 'excerpt': excerpt}
+            for source_id, url, title, publisher, excerpt in source_rows
+        ]
+        config = ModelGatewayConfig.from_env()
+        client = self._model_client_factory(config)
+        claims_by_source = []
+        for source in sources:
+            try:
+                claims = evidence.extract_claims_for_source(client, config, source)
+            except StructuredOutputError as error:
+                message = str(error)[:1000]
+                log.warning(
+                    'evidence extraction failed for source worker_id=%s run_id=%s workspace_id=%s source_id=%s error=%s',
+                    self.worker_id,
+                    run_id,
+                    organization_id,
+                    source['id'],
+                    message,
+                )
+                claims = []
+            claims_by_source.append((source['id'], claims))
+        resolvable_source_ids = {source['id'] for source in sources}
+        evidence_rows = evidence.assemble_evidence_rows(claims_by_source, resolvable_source_ids)
+        if not evidence_rows:
+            raise RuntimeError('no evidence claims survived extraction')
+        for row in evidence_rows:
+            connection.execute(
+                INSERT_EVIDENCE_SQL,
+                (
+                    _generate_evidence_id(),
+                    organization_id,
+                    run_id,
+                    row.source_id,
+                    row.claim,
+                    row.signal_type,
+                    row.confidence,
+                    row.observed_at,
+                ),
+            )
+        log.info(
+            'evidence stage complete worker_id=%s run_id=%s workspace_id=%s sources=%s evidence_rows=%s',
+            self.worker_id,
+            run_id,
+            organization_id,
+            len(sources),
+            len(evidence_rows),
+        )
