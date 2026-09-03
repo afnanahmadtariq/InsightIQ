@@ -87,6 +87,15 @@ def assemble_sections(state: BriefState) -> BriefState:
     ]
     questions = _signal_questions(context, ranked)
     outreach = None
+    personalized = f'{first}, I saw that {lead.split(".")[0].lower()} — worth a quick conversation?'
+    objections = [
+        'If timing is tight: we can start with a 15-minute walkthrough tied to one verified signal, not a generic pitch.',
+        'If you already have a research process: InsightIQ shows its work with citations, so your team can verify every claim.',
+    ]
+    next_steps = [
+        f'Confirm which of the {len(ranked)} cited signals matter most for {company} this quarter.',
+        f'Map {context.offer_name} to one live workflow (outreach or meeting prep) in the next 14 days.',
+    ]
     if context.goal == 'outreach':
         outreach = (
             f'Hi {first}, I was reading about {company} and noticed: "{lead}" '
@@ -98,6 +107,9 @@ def assemble_sections(state: BriefState) -> BriefState:
         key_signals=citations,
         talking_points=talking_points,
         questions_to_ask=questions if context.goal == 'meeting' else [],
+        personalized_opener=personalized,
+        objection_handling=objections,
+        next_steps=next_steps,
         outreach_draft=outreach,
         gaps=[],
     )

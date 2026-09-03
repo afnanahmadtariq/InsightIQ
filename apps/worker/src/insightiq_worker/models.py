@@ -66,6 +66,9 @@ class BriefSections(BaseModel):
     key_signals: list[BriefCitation]
     talking_points: list[str]
     questions_to_ask: list[str] = Field(default_factory=list)
+    personalized_opener: Optional[str] = None
+    objection_handling: list[str] = Field(default_factory=list)
+    next_steps: list[str] = Field(default_factory=list)
     outreach_draft: Optional[str] = None
     gaps: list[str] = Field(default_factory=list)
 

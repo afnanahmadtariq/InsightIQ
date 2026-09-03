@@ -6,7 +6,7 @@ from langgraph.graph import END, START, StateGraph
 
 from insightiq_worker.extract import extract_claims
 from insightiq_worker.fetch import fetch_page_text
-from insightiq_worker.llm import refine_claims
+from insightiq_worker.llm import extract_claims_with_llm, fallback_claims, llm_enabled, refine_claims
 from insightiq_worker.models import EvidenceDraft, RunContext, SourceBundle
 
 
@@ -31,25 +31,32 @@ def enrich_sources(state: EvidenceState) -> EvidenceState:
 
 def extract_from_sources(state: EvidenceState) -> EvidenceState:
     context = state['context']
+    sources = state['sources']
     drafts: list[EvidenceDraft] = []
-    for source in state['sources']:
-        if not source.text.strip():
-            continue
-        for claim in extract_claims(
-            source.text,
-            prospect_name=context.prospect_name,
-            company_name=context.company_name,
-            source_score=source.score,
-            limit=2,
-        ):
-            drafts.append(
-                EvidenceDraft(
-                    source_id=source.source_id,
-                    claim=claim.claim,
-                    signal_type=claim.signal_type,
-                    confidence=claim.confidence,
-                )
-            )
+    if llm_enabled():
+        drafts = extract_claims_with_llm(context, sources, limit=8)
+    if not drafts:
+        drafts = fallback_claims(context, sources, limit=2)
+    else:
+        for source in sources:
+            if not source.text.strip():
+                continue
+            for claim in extract_claims(
+                source.text,
+                prospect_name=context.prospect_name,
+                company_name=context.company_name,
+                source_score=source.score,
+                limit=1,
+            ):
+                if all(existing.claim != claim.claim for existing in drafts):
+                    drafts.append(
+                        EvidenceDraft(
+                            source_id=source.source_id,
+                            claim=claim.claim,
+                            signal_type=claim.signal_type,
+                            confidence=claim.confidence,
+                        )
+                    )
     return {**state, 'drafts': drafts}
 
 

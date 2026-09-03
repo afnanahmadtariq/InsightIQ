@@ -1,7 +1,8 @@
 import unittest
 
 from insightiq_worker.extract import classify_sentence, extract_claims, merge_claim_lists
-from insightiq_worker.llm import llm_enabled
+from insightiq_worker.llm import fallback_claims, llm_enabled
+from insightiq_worker.models import SourceBundle
 from insightiq_worker.tavily import build_discovery_queries, tavily_configured
 from insightiq_worker.graph_brief import build_brief_graph, citation_gate, new_id
 from insightiq_worker.models import BriefCitation, BriefSections, RunContext
@@ -27,6 +28,32 @@ class LlmTest(unittest.TestCase):
             for key, value in saved.items():
                 if value is not None:
                     os.environ[key] = value
+
+    def test_fallback_claims_from_sources(self):
+        from insightiq_worker.models import RunContext
+
+        context = RunContext(
+            run_id='run',
+            organization_id='org',
+            goal='meeting',
+            created_by_id='user',
+            prospect_name='Tim Cook',
+            company_name='Apple',
+            offer_name='Platform',
+            value_proposition='Better conversations.',
+        )
+        sources = [
+            SourceBundle(
+                source_id='src-1',
+                url='https://example.com/cook',
+                title='Example',
+                text='Timothy Donald Cook is the chief executive officer of Apple Inc.',
+                score=0.9,
+            )
+        ]
+        drafts = fallback_claims(context, sources, limit=2)
+        self.assertTrue(drafts)
+        self.assertIn('Cook', drafts[0].claim)
 
 class ExtractTest(unittest.TestCase):
     def test_classifies_hiring_sentence(self):
@@ -133,6 +160,9 @@ class BriefGateTest(unittest.TestCase):
         self.assertTrue(sections.summary)
         self.assertEqual(len(sections.key_signals), 1)
         self.assertTrue(sections.questions_to_ask)
+        self.assertTrue(sections.personalized_opener)
+        self.assertTrue(sections.objection_handling)
+        self.assertTrue(sections.next_steps)
 
 
 if __name__ == '__main__':

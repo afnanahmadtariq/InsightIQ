@@ -110,6 +110,14 @@ def process_evidence_stage(connection, run_id: str, organization_id: str) -> int
     row = connection.execute(LOAD_RUN_SQL, (run_id, organization_id)).fetchone()
     if not row:
         raise RuntimeError('research run not found')
+    existing = connection.execute(
+        'SELECT COUNT(*)::int FROM evidence WHERE "researchRunId" = %s AND "organizationId" = %s',
+        (run_id, organization_id),
+    ).fetchone()[0]
+    if existing > 0:
+        connection.execute(RELEASE_LOCK_SQL, (run_id, organization_id))
+        log.info('evidence stage skipped run_id=%s existing_claims=%s', run_id, existing)
+        return existing
     context = run_context_from_row(row)
     source_rows = connection.execute(LOAD_SOURCES_SQL, (run_id, organization_id)).fetchall()
     if not source_rows:
@@ -157,6 +165,14 @@ def process_brief_stage(connection, run_id: str, organization_id: str) -> str:
     row = connection.execute(LOAD_RUN_SQL, (run_id, organization_id)).fetchone()
     if not row:
         raise RuntimeError('research run not found')
+    existing = connection.execute(
+        'SELECT id FROM deal_brief WHERE "researchRunId" = %s AND "organizationId" = %s',
+        (run_id, organization_id),
+    ).fetchone()
+    if existing:
+        connection.execute(COMPLETE_RUN_SQL, (run_id, organization_id))
+        log.info('brief stage skipped run_id=%s existing_brief_id=%s', run_id, existing[0])
+        return str(existing[0])
     context = run_context_from_row(row)
     evidence_rows = connection.execute(LOAD_EVIDENCE_SQL, (run_id, organization_id)).fetchall()
     if not evidence_rows:

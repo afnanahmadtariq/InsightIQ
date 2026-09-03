@@ -16,6 +16,7 @@ llm = ["openai>=1.40"]
 
 [project.scripts]
 insightiq-demo-collect = "insightiq_worker.demo:main"
+insightiq-process-run = "insightiq_worker.process_run:main"
 
 [build-system]
 requires = ["setuptools"]
