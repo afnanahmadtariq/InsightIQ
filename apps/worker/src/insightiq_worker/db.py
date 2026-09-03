@@ -103,7 +103,36 @@ class Worker:
                         elapsed_ms,
                     )
                     return True
-                # ponytail: evidence/brief models are not in this worker yet; hold the row briefly so the loop does not spin.
+                if stage == 'evidence':
+                    from insightiq_worker.stages import process_evidence_stage
+
+                    inserted = process_evidence_stage(connection, run_id, organization_id)
+                    connection.commit()
+                    elapsed_ms = round((time.monotonic() - started_at) * 1000)
+                    log.info(
+                        'job cycle finished worker_id=%s run_id=%s workspace_id=%s stage=evidence outcome=success claims=%s duration_ms=%s',
+                        self.worker_id,
+                        run_id,
+                        organization_id,
+                        inserted,
+                        elapsed_ms,
+                    )
+                    return True
+                if stage == 'brief':
+                    from insightiq_worker.stages import process_brief_stage
+
+                    brief_id = process_brief_stage(connection, run_id, organization_id)
+                    connection.commit()
+                    elapsed_ms = round((time.monotonic() - started_at) * 1000)
+                    log.info(
+                        'job cycle finished worker_id=%s run_id=%s workspace_id=%s stage=brief outcome=success brief_id=%s duration_ms=%s',
+                        self.worker_id,
+                        run_id,
+                        organization_id,
+                        brief_id,
+                        elapsed_ms,
+                    )
+                    return True
                 connection.execute(BACKOFF_SQL, (self.backoff_for, run_id, organization_id))
                 connection.commit()
                 elapsed_ms = round((time.monotonic() - started_at) * 1000)

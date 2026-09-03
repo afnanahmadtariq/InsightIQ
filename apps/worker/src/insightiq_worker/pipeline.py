@@ -51,7 +51,10 @@ WHERE id = %s AND "organizationId" = %s AND status = 'running'
 """
 
 
-def next_stage(status: str, sources: int, evidence: int, has_brief: bool) -> str | None:
+from typing import Optional
+
+
+def next_stage(status: str, sources: int, evidence: int, has_brief: bool) -> Optional[str]:
     if status != 'running' or sources < 1:
         return None
     if evidence < 1:

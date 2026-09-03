@@ -23,6 +23,14 @@ npm run dev
 
 Worker setup is explicit so JavaScript-only installs and deployment CI do not require Python. Re-run `npm run worker:setup` after changing worker dependencies; API or frontend-only development can skip it.
 
+The worker uses **psycopg**, **Pydantic**, **LangGraph**, **httpx**, **BeautifulSoup**, and optional **Crawl4AI** (`WORKER_USE_CRAWL4AI=true`) to enrich sources, extract citable claims, and synthesize deal briefs. With `TAVILY_API_KEY` set, the demo and worker prefer live web discovery; with `OPENAI_API_KEY` or `DASHSCOPE_API_KEY` (plus optional `pip install -e '.[llm]'`), claims and brief copy are LLM-refined.
+
+```bash
+npm run worker:setup
+apps/worker/.venv/bin/pip install -e 'apps/worker/.[llm]'   # optional LLM layer
+apps/worker/.venv/bin/python -m insightiq_worker.demo --prospect "Tim Cook" --company "Apple"
+```
+
 The web app runs on `http://localhost:3000` and the API on `http://localhost:3001` by default. Turbo also starts `@insightiq/worker`, which polls PostgreSQL for runs that already have sources.
 
 ## Quality pipeline

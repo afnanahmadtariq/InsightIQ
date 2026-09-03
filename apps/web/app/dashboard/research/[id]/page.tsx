@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { ResearchRunActions } from '../../../../components/research-run-actions'
+import { ResearchRunPoller } from '../../../../components/research-run-poller'
 import { ButtonLink } from '../../../../components/ui/button'
 import { EmptyState } from '../../../../components/ui/empty-state'
 import { StatusBadge } from '../../../../components/ui/status-badge'
@@ -26,6 +27,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const evidenceComplete = run.evidence.length > 0
 
   return <WorkspacePage>
+    <ResearchRunPoller status={run.status} hasSources={discoveryComplete} hasBrief={Boolean(run.brief)}/>
     <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Research queue</Link>
     <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} connected to <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
 
@@ -39,13 +41,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[950px]:grid-cols-4" aria-label="Research workflow">
       <WorkflowStep number="01" title="Intake" description="Identifiers and offer preserved." complete icon={<Check size={16}/>}/>
       <WorkflowStep number="02" title="Discovery" description={discoveryComplete ? `${run.sources.length} sources collected.` : 'Ready to search public sources.'} complete={discoveryComplete} icon={discoveryComplete ? <Check size={16}/> : <Search size={16}/>}/>
-      <WorkflowStep number="03" title="Evidence" description={evidenceComplete ? `${run.evidence.length} claims normalized.` : 'Normalization is the next worker stage.'} complete={evidenceComplete} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
-      <WorkflowStep number="04" title="Brief" description={run.brief ? 'Tailored output is ready.' : 'Synthesis follows verified evidence.'} complete={Boolean(run.brief)} icon={run.brief ? <Check size={16}/> : <Sparkles size={16}/>}/>
+      <WorkflowStep number="03" title="Evidence" description={evidenceComplete ? `${run.evidence.length} claims normalized.` : discoveryComplete ? 'Worker is extracting citable claims.' : 'Runs after source discovery.'} complete={evidenceComplete} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
+      <WorkflowStep number="04" title="Brief" description={run.brief ? 'Tailored output is ready.' : evidenceComplete ? 'Worker is synthesizing your deal brief.' : 'Synthesis follows verified evidence.'} complete={Boolean(run.brief)} icon={run.brief ? <Check size={16}/> : <Sparkles size={16}/>}/>
     </section>
 
     {run.status === 'queued' && <ResearchCallout icon={<Search size={19}/>} title="Ready for public-source discovery" body="Launch the current Tavily discovery stage. It searches profile, company, and recent-signal queries in parallel while keeping every returned URL traceable."><ResearchRunActions run={run}/></ResearchCallout>}
     {run.status === 'running' && !discoveryComplete && <ResearchCallout icon={<CircleDashed size={19}/>} title="Discovery is in progress" body="The request has been claimed. Refresh to inspect sources as soon as collection finishes."><ResearchRunActions run={run}/></ResearchCallout>}
-    {run.status === 'running' && discoveryComplete && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Source discovery complete" body="The raw source layer is ready. Evidence normalization and deal-brief synthesis are the next implementation stages."/>}
+    {run.status === 'running' && discoveryComplete && !run.brief && <ResearchCallout tone="success" icon={<CircleDashed size={19}/>} title="Worker is synthesizing your brief" body="Sources are collected. The Python worker is extracting citable claims and generating your deal brief — this page refreshes automatically."><ResearchRunActions run={run}/></ResearchCallout>}
+    {run.status === 'running' && discoveryComplete && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Deal brief ready" body="Your cited brief is ready to review."><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
+    {run.status === 'completed' && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Research complete" body={`${run.evidence.length} verified claim(s) and a tailored deal brief are ready.`}><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
     {run.status === 'failed' && <ResearchCallout tone="error" icon={<CircleDashed size={19}/>} title="Discovery needs attention" body={run.errorMessage || 'The provider could not complete this run. Retry after checking the project integration.'}><ResearchRunActions run={run}/></ResearchCallout>}
 
     <WorkspaceSplit>
@@ -58,7 +62,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </WorkspaceSection>
 
         <WorkspaceSection title="Verified evidence" description="Normalized claims that retain a direct source citation.">
-          {run.evidence.length ? <div className="grid gap-[9px]">{run.evidence.map((item) => <article className="rounded-[14px] border border-iq-200 bg-white p-[18px]" key={item.id}><header className="flex items-center justify-between gap-3 text-[.7rem] font-[650] tracking-[.05em] text-brand uppercase"><span>{item.signalType}</span><strong className="text-[.68rem] text-success">{formatConfidence(item.confidence)}</strong></header><p className="my-3 text-[.87rem] leading-[1.6] text-iq-700">{item.claim}</p><a className="inline-flex items-center gap-[5px] text-[.74rem] font-[650] text-brand" href={item.source.url} target="_blank" rel="noreferrer">{item.source.title}<ArrowUpRight size={14}/></a></article>)}</div> : <EmptyState icon={<FileCheck2 size={20}/>} title="Evidence normalization is next" body="The source schema is ready. The next worker should extract bounded claims, assign confidence, and preserve the source relationship."/>}
+          {run.evidence.length ? <div className="grid gap-[9px]">{run.evidence.map((item) => <article className="rounded-[14px] border border-iq-200 bg-white p-[18px]" key={item.id}><header className="flex items-center justify-between gap-3 text-[.7rem] font-[650] tracking-[.05em] text-brand uppercase"><span>{item.signalType}</span><strong className="text-[.68rem] text-success">{formatConfidence(item.confidence)}</strong></header><p className="my-3 text-[.87rem] leading-[1.6] text-iq-700">{item.claim}</p><a className="inline-flex items-center gap-[5px] text-[.74rem] font-[650] text-brand" href={item.source.url} target="_blank" rel="noreferrer">{item.source.title}<ArrowUpRight size={14}/></a></article>)}</div> : <EmptyState icon={<FileCheck2 size={20}/>} title={discoveryComplete ? 'Extracting verified claims' : 'Evidence follows discovery'} body={discoveryComplete ? 'The worker is reading collected sources and normalizing citable claims with confidence scores.' : 'Start discovery above. Claims appear here once the worker extracts them from collected sources.'}/>}
         </WorkspaceSection>
       </div>
 
