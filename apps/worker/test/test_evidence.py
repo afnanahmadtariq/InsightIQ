@@ -8,6 +8,7 @@ from insightiq_worker.evidence import (
     EvidenceRow,
     ExtractedClaim,
     _boost_confidence,
+    _extract_numeric_tokens,
     _is_same_fact,
     _normalize_claim_text,
     assemble_evidence_rows,
@@ -87,6 +88,20 @@ class NormalizeClaimTextTest(unittest.TestCase):
         self.assertEqual(_normalize_claim_text('Acme hired a VP of Sales,'), 'acme hired a vp of sales')
 
 
+class ExtractNumericTokensTest(unittest.TestCase):
+    def test_extracts_dollar_amount_with_unit_letter(self):
+        self.assertEqual(_extract_numeric_tokens('acme raised $20m series b'), {'$20m'})
+
+    def test_extracts_percent_comma_and_decimal_tokens(self):
+        self.assertEqual(_extract_numeric_tokens('grew 50% to 1,200 users in 3.5 years'), {'50%', '1,200', '3.5'})
+
+    def test_no_numeric_tokens_returns_empty_set(self):
+        self.assertEqual(_extract_numeric_tokens('acme hired a vp of sales'), set())
+
+    def test_digit_embedded_in_a_word_is_not_treated_as_numeric(self):
+        self.assertEqual(_extract_numeric_tokens('acme hired a vp of sales in q3'), set())
+
+
 class IsSameFactTest(unittest.TestCase):
     def test_different_signal_types_are_never_the_same_fact(self):
         a = _claim('Acme hired a VP of Sales', signal_type='hiring')
@@ -101,6 +116,11 @@ class IsSameFactTest(unittest.TestCase):
     def test_unrelated_text_same_signal_type_is_not_the_same_fact(self):
         a = _claim('Acme hired a VP of Sales', signal_type='hiring')
         b = _claim('Acme raised a Series B', signal_type='hiring')
+        self.assertFalse(_is_same_fact(a, b))
+
+    def test_conflicting_numeric_details_are_never_the_same_fact_despite_high_word_overlap(self):
+        a = _claim('Acme raised $20M Series B', signal_type='funding')
+        b = _claim('Acme raised $50M Series B', signal_type='funding')
         self.assertFalse(_is_same_fact(a, b))
 
 
@@ -148,6 +168,17 @@ class ReconcileClaimsTest(unittest.TestCase):
         confidences = {row.claim: row.confidence for row in rows}
         self.assertEqual(confidences['Acme hired a VP of Sales'], 0.6)
         self.assertEqual(confidences['Acme raised a Series B'], 0.5)
+
+    def test_conflicting_numeric_details_from_two_sources_stay_separate_and_unaveraged(self):
+        claims_by_source = [
+            ('source-a', [_claim('Acme raised $20M Series B', signal_type='funding', confidence=0.6)]),
+            ('source-b', [_claim('Acme raised $50M Series B', signal_type='funding', confidence=0.5)]),
+        ]
+        rows = reconcile_claims(claims_by_source)
+        self.assertEqual(len(rows), 2)
+        confidences = {row.claim: row.confidence for row in rows}
+        self.assertEqual(confidences['Acme raised $20M Series B'], 0.6)
+        self.assertEqual(confidences['Acme raised $50M Series B'], 0.5)
 
 
 class AssembleEvidenceRowsTest(unittest.TestCase):

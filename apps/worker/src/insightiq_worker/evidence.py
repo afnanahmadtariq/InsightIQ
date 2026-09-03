@@ -16,6 +16,7 @@ SAME_FACT_OVERLAP_THRESHOLD = 0.6
 
 _TRAILING_PUNCTUATION = '.,!?'
 _WHITESPACE_PATTERN = re.compile(r'\s+')
+_NUMERIC_TOKEN_PATTERN = re.compile(r'(?<![a-z0-9])\$?\d[\d,]*\.?\d*%?[a-z]?')
 
 
 class ExtractedClaim(BaseModel):
@@ -83,11 +84,21 @@ def _normalize_claim_text(text: str) -> str:
     return collapsed.rstrip(_TRAILING_PUNCTUATION + string.whitespace)
 
 
+def _extract_numeric_tokens(text: str) -> set[str]:
+    return set(_NUMERIC_TOKEN_PATTERN.findall(text))
+
+
 def _is_same_fact(a: ExtractedClaim, b: ExtractedClaim) -> bool:
     if a.signalType != b.signalType:
         return False
-    words_a = set(_normalize_claim_text(a.claim).split())
-    words_b = set(_normalize_claim_text(b.claim).split())
+    normalized_a = _normalize_claim_text(a.claim)
+    normalized_b = _normalize_claim_text(b.claim)
+    numeric_a = _extract_numeric_tokens(normalized_a)
+    numeric_b = _extract_numeric_tokens(normalized_b)
+    if numeric_a and numeric_b and numeric_a != numeric_b:
+        return False
+    words_a = set(normalized_a.split())
+    words_b = set(normalized_b.split())
     union = words_a | words_b
     if not union:
         return False
