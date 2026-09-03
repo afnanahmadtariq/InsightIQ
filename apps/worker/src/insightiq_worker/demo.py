@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from typing import Optional
 
 from insightiq_worker.fetch import company_news_urls, fetch_page_text, wikipedia_resolve
 from insightiq_worker.graph_brief import build_brief_graph, new_id
@@ -12,7 +13,7 @@ from insightiq_worker.models import RunContext, SourceBundle
 from insightiq_worker.tavily import discover_sources, tavily_configured
 
 
-def _wiki_sources(prospect_name: str, company_name: str | None, *, use_crawl4ai: bool) -> list[SourceBundle]:
+def _wiki_sources(prospect_name: str, company_name: Optional[str], *, use_crawl4ai: bool) -> list[SourceBundle]:
     bundles: list[SourceBundle] = []
     hints = tuple(token for token in (prospect_name.split()[-1], 'technology', 'company') if token)
 
@@ -57,7 +58,7 @@ def _wiki_sources(prospect_name: str, company_name: str | None, *, use_crawl4ai:
     return bundles
 
 
-def collect_public_profile(prospect_name: str, company_name: str | None, *, use_crawl4ai: bool) -> dict:
+def collect_public_profile(prospect_name: str, company_name: Optional[str], *, use_crawl4ai: bool) -> dict:
     bundles = discover_sources(prospect_name, company_name) if tavily_configured() else []
     source_mode = 'tavily' if bundles else 'wikipedia'
     if not bundles:
@@ -104,7 +105,7 @@ def collect_public_profile(prospect_name: str, company_name: str | None, *, use_
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description='Collect public prospect signals without the database.')
     parser.add_argument('--prospect', required=True, help='Prospect full name')
     parser.add_argument('--company', help='Company name')

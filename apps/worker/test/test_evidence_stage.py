@@ -2,8 +2,10 @@ import json
 import os
 import unittest
 from unittest.mock import patch
+import datetime
 
 from insightiq_worker.db import Worker
+from insightiq_worker.models import EvidenceDraft
 from insightiq_worker.pipeline import (
     BACKOFF_SQL,
     CLAIM_SQL,
@@ -12,6 +14,7 @@ from insightiq_worker.pipeline import (
     FETCH_SOURCES_SQL,
     INSERT_EVIDENCE_SQL,
 )
+from insightiq_worker.stages import _assemble_langgraph_evidence, process_brief_stage
 
 
 class _FakeMessage:
@@ -110,6 +113,8 @@ class FakeConnection:
         if sql == COUNTS_SQL:
             return FakeCursor(fetchone_result=self.counts_row)
         if sql == FETCH_SOURCES_SQL:
+            return FakeCursor(fetchall_result=self.sources_rows)
+        if 'FROM evidence_source' in sql and 'metadata' in sql:
             return FakeCursor(fetchall_result=self.sources_rows)
         if 'FROM research_run r' in sql and 'JOIN prospect p' in sql:
             return FakeCursor(fetchone_result=RUN_CONTEXT_ROW)
@@ -388,6 +393,87 @@ class EvidenceStageDegradeOneSourceTest(unittest.TestCase):
         self.assertTrue(result)
         self.assertIn(FAIL_SQL, connection.executed_sql())
         self.assertNotIn(INSERT_EVIDENCE_SQL, connection.executed_sql())
+
+
+class LanggraphEvidenceAssemblyTest(unittest.TestCase):
+    def test_reconciles_matching_claims_from_two_sources(self):
+        drafts = [
+            EvidenceDraft(source_id='source-a', claim='Acme hired a VP of Sales', signal_type='hiring', confidence=0.6),
+            EvidenceDraft(
+                source_id='source-b',
+                claim='Acme hired a VP of Sales in Q3',
+                signal_type='hiring',
+                confidence=0.5,
+            ),
+        ]
+        sources = [{'id': 'source-a'}, {'id': 'source-b'}]
+        rows = _assemble_langgraph_evidence(drafts, sources)
+        self.assertEqual(len(rows), 1)
+        self.assertGreater(rows[0].confidence, 0.6)
+
+    def test_prefers_source_published_at_when_present(self):
+        drafts = [
+            EvidenceDraft(source_id='source-a', claim='Acme hired a VP of Sales', signal_type='hiring', confidence=0.6),
+        ]
+        sources = [{'id': 'source-a', 'publishedAt': datetime.date(2024, 6, 15)}]
+        rows = _assemble_langgraph_evidence(drafts, sources)
+        self.assertEqual(rows[0].observed_at, '2024-06-15')
+
+
+class EvidenceStageLanggraphPathTest(unittest.TestCase):
+    LANGGRAPH_SOURCE_ROW = (
+        'source-1',
+        'https://example.test/a',
+        'A Title',
+        'Tim Cook is CEO of Apple Inc.',
+        {'matches': [{'score': 0.9}]},
+        datetime.date(2024, 1, 10),
+    )
+
+    def test_langgraph_path_reconciles_and_sets_observed_at(self):
+        duplicate_drafts = [
+            EvidenceDraft(source_id='source-1', claim='Tim Cook is CEO of Apple Inc.', signal_type='leadership', confidence=0.7),
+            EvidenceDraft(source_id='source-1', claim='Tim Cook is CEO of Apple Inc.', signal_type='leadership', confidence=0.8),
+        ]
+        connection = FakeConnection(
+            claimed_row=CLAIMED_ROW,
+            counts_row=(1, 0, False),
+            sources_rows=[self.LANGGRAPH_SOURCE_ROW],
+        )
+        worker = Worker(database_url='postgresql://x')
+
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('DASHSCOPE_API_KEY', None)
+            with patch('insightiq_worker.stages.build_evidence_graph') as mock_graph:
+                mock_graph.return_value.invoke.return_value = {'drafts': duplicate_drafts}
+                with patch('psycopg.connect', return_value=connection):
+                    result = worker.poll_once()
+
+        self.assertTrue(result)
+        insert_calls = [
+            (sql, params) for kind, sql, params in connection.actions if kind == 'execute' and sql == INSERT_EVIDENCE_SQL
+        ]
+        self.assertEqual(len(insert_calls), 1)
+        self.assertEqual(insert_calls[0][1][7], '2024-01-10')
+        self.assertNotIn(FAIL_SQL, connection.executed_sql())
+
+
+class BriefStageHappyPathTest(unittest.TestCase):
+    def test_brief_stage_persists_brief_notification_and_completes_run(self):
+        connection = FakeConnection(
+            claimed_row=CLAIMED_ROW,
+            counts_row=(2, 1, False),
+            evidence_rows=[EVIDENCE_ROW],
+        )
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('DASHSCOPE_API_KEY', None)
+            brief_id = process_brief_stage(connection, RUN_ID, ORGANIZATION_ID)
+
+        self.assertTrue(brief_id)
+        executed = connection.executed_sql()
+        self.assertTrue(any('INSERT INTO deal_brief' in sql for sql in executed))
+        self.assertTrue(any('INSERT INTO notification' in sql for sql in executed))
+        self.assertTrue(any('"completedAt" = NOW()' in sql for sql in executed))
 
 
 if __name__ == '__main__':

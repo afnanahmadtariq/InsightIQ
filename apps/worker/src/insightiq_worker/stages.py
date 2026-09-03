@@ -10,7 +10,7 @@ from insightiq_worker import evidence
 from insightiq_worker.graph_brief import build_brief_graph, new_id
 from insightiq_worker.graph_evidence import build_evidence_graph
 from insightiq_worker.model_gateway import ModelGatewayConfig, StructuredOutputError, build_client
-from insightiq_worker.models import RunContext, SourceBundle
+from insightiq_worker.models import EvidenceDraft, RunContext, SourceBundle
 from insightiq_worker.pipeline import FETCH_SOURCES_SQL, INSERT_EVIDENCE_SQL
 
 log = logging.getLogger('insightiq.worker.stages')
@@ -34,7 +34,7 @@ WHERE r.id = %s AND r."organizationId" = %s
 """
 
 LOAD_SOURCES_SQL = """
-SELECT id, url, title, excerpt, metadata
+SELECT id, url, title, excerpt, metadata, "publishedAt"
 FROM evidence_source
 WHERE "researchRunId" = %s AND "organizationId" = %s
 ORDER BY "retrievedAt" ASC
@@ -197,11 +197,48 @@ def _process_evidence_gateway(
     return len(evidence_rows)
 
 
+def _assemble_langgraph_evidence(
+    drafts: list[EvidenceDraft], sources: list[dict[str, Any]]
+) -> list[evidence.EvidenceRow]:
+    published_by_source = {source['id']: source.get('publishedAt') for source in sources}
+    grouped: dict[str, list[EvidenceDraft]] = {}
+    for draft in drafts:
+        grouped.setdefault(draft.source_id, []).append(draft)
+
+    claims_by_source: list[tuple[str, list[evidence.ExtractedClaim]]] = []
+    for source_id, source_drafts in grouped.items():
+        claims = [
+            evidence.ExtractedClaim(
+                claim=draft.claim,
+                signalType=draft.signal_type,
+                confidence=draft.confidence,
+            )
+            for draft in source_drafts
+        ]
+        published_at = published_by_source.get(source_id)
+        if published_at is not None:
+            claims = _prefer_source_published_at({'publishedAt': published_at}, claims)
+        claims_by_source.append((source_id, claims))
+
+    resolvable_source_ids = {source['id'] for source in sources}
+    return evidence.assemble_evidence_rows(claims_by_source, resolvable_source_ids)
+
+
 def _process_evidence_langgraph(connection, run_id: str, organization_id: str, context: RunContext) -> int:
     source_rows = connection.execute(LOAD_SOURCES_SQL, (run_id, organization_id)).fetchall()
     if not source_rows:
         raise RuntimeError('no sources to normalize')
 
+    sources = [
+        {
+            'id': source_id,
+            'url': url,
+            'title': title,
+            'excerpt': excerpt,
+            'publishedAt': published_at,
+        }
+        for source_id, url, title, excerpt, metadata, published_at in source_rows
+    ]
     bundles = [
         SourceBundle(
             source_id=source_id,
@@ -210,32 +247,33 @@ def _process_evidence_langgraph(connection, run_id: str, organization_id: str, c
             text=(excerpt or '').strip(),
             score=_source_score(metadata),
         )
-        for source_id, url, title, excerpt, metadata in source_rows
+        for source_id, url, title, excerpt, metadata, published_at in source_rows
     ]
     prefer_crawl4ai = os.environ.get('WORKER_USE_CRAWL4AI', '').lower() in {'1', 'true', 'yes'}
     result = build_evidence_graph().invoke(
         {'context': context, 'sources': bundles, 'drafts': [], 'prefer_crawl4ai': prefer_crawl4ai}
     )
     drafts = result['drafts']
-    if not drafts:
+    evidence_rows = _assemble_langgraph_evidence(drafts, sources)
+    if not evidence_rows:
         raise RuntimeError('evidence normalization produced zero claims')
 
-    for draft in drafts:
+    for row in evidence_rows:
         connection.execute(
             INSERT_EVIDENCE_SQL,
             (
                 new_id(),
                 organization_id,
                 run_id,
-                draft.source_id,
-                draft.claim,
-                draft.signal_type,
-                draft.confidence,
-                None,
+                row.source_id,
+                row.claim,
+                row.signal_type,
+                row.confidence,
+                row.observed_at,
             ),
         )
-    log.info('evidence langgraph complete run_id=%s claims=%s', run_id, len(drafts))
-    return len(drafts)
+    log.info('evidence langgraph complete run_id=%s claims=%s', run_id, len(evidence_rows))
+    return len(evidence_rows)
 
 
 def process_evidence_stage(
