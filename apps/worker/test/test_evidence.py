@@ -3,10 +3,12 @@ import unittest
 from pydantic import ValidationError
 
 from insightiq_worker.evidence import (
+    MAX_CLAIMS_PER_SOURCE,
     SAME_FACT_OVERLAP_THRESHOLD,
     SIGNAL_TYPES,
     EvidenceRow,
     ExtractedClaim,
+    SourceClaims,
     _boost_confidence,
     _extract_numeric_tokens,
     _is_same_fact,
@@ -57,6 +59,42 @@ class ExtractedClaimValidationTest(unittest.TestCase):
         self.assertEqual(claim.signalType, 'hiring')
         self.assertEqual(claim.confidence, 0.6)
         self.assertIsNone(claim.observedAt)
+
+
+class ExtractedClaimObservedAtValidationTest(unittest.TestCase):
+    def test_valid_iso_date_is_preserved(self):
+        claim = _claim('Acme hired a VP of Sales', observed_at='2024-06-15')
+        self.assertEqual(claim.observedAt, '2024-06-15')
+
+    def test_garbage_date_becomes_none_instead_of_raising(self):
+        claim = _claim('Acme hired a VP of Sales', observed_at='Q3 2024')
+        self.assertIsNone(claim.observedAt)
+
+    def test_blank_string_becomes_none(self):
+        claim = _claim('Acme hired a VP of Sales', observed_at='')
+        self.assertIsNone(claim.observedAt)
+
+    def test_missing_observed_at_stays_none(self):
+        claim = _claim('Acme hired a VP of Sales')
+        self.assertIsNone(claim.observedAt)
+
+
+class SourceClaimsMaxLengthTest(unittest.TestCase):
+    def test_more_than_max_claims_per_source_fails_validation(self):
+        claims_payload = [
+            {'claim': f'Claim number {index}', 'signalType': 'hiring', 'confidence': 0.5, 'observedAt': None}
+            for index in range(MAX_CLAIMS_PER_SOURCE + 1)
+        ]
+        with self.assertRaises(ValidationError):
+            SourceClaims(claims=claims_payload)
+
+    def test_exactly_max_claims_per_source_is_valid(self):
+        claims_payload = [
+            {'claim': f'Claim number {index}', 'signalType': 'hiring', 'confidence': 0.5, 'observedAt': None}
+            for index in range(MAX_CLAIMS_PER_SOURCE)
+        ]
+        result = SourceClaims(claims=claims_payload)
+        self.assertEqual(len(result.claims), MAX_CLAIMS_PER_SOURCE)
 
 
 class BuildExtractionPromptTest(unittest.TestCase):

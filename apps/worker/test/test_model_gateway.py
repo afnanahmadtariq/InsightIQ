@@ -52,6 +52,30 @@ class FakeClient:
         self.chat = _FakeChat(contents)
 
 
+class _EmptyChoicesResponse:
+    def __init__(self):
+        self.choices = []
+
+
+class _EmptyChoicesCompletions:
+    def __init__(self):
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return _EmptyChoicesResponse()
+
+
+class _EmptyChoicesChat:
+    def __init__(self):
+        self.completions = _EmptyChoicesCompletions()
+
+
+class EmptyChoicesClient:
+    def __init__(self):
+        self.chat = _EmptyChoicesChat()
+
+
 def _config() -> ModelGatewayConfig:
     return ModelGatewayConfig(api_key='test-key', base_url='https://example.test/v1', model='qwen3-max')
 
@@ -115,6 +139,30 @@ class RequestStructuredOutputTest(unittest.TestCase):
 
     def test_schema_validation_failure_also_retries_once_then_raises(self):
         client = FakeClient([json.dumps({'wrong_field': 1}), json.dumps({'wrong_field': 2})])
+        with self.assertRaises(StructuredOutputError):
+            request_structured_output(
+                client,
+                _config(),
+                system_prompt='system',
+                user_prompt='user',
+                schema=_SampleSchema,
+            )
+        self.assertEqual(len(client.chat.completions.calls), 2)
+
+    def test_empty_choices_list_raises_structured_output_error_and_calls_exactly_twice(self):
+        client = EmptyChoicesClient()
+        with self.assertRaises(StructuredOutputError):
+            request_structured_output(
+                client,
+                _config(),
+                system_prompt='system',
+                user_prompt='user',
+                schema=_SampleSchema,
+            )
+        self.assertEqual(len(client.chat.completions.calls), 2)
+
+    def test_none_message_content_raises_structured_output_error_and_calls_exactly_twice(self):
+        client = FakeClient([None, None])
         with self.assertRaises(StructuredOutputError):
             request_structured_output(
                 client,

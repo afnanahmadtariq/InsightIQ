@@ -52,7 +52,12 @@ def request_structured_output(
         try:
             payload = json.loads(response.choices[0].message.content)
             return schema.model_validate(payload)
-        except (json.JSONDecodeError, ValidationError) as error:
+        except (json.JSONDecodeError, ValidationError, TypeError, IndexError) as error:
+            # IndexError: response.choices is empty. TypeError: message.content is
+            # None (e.g. a filtered or tool-call-only completion) and json.loads(None)
+            # raises. Both are malformed-response shapes, not just bad JSON/schema —
+            # they must stay inside the retry-then-raise contract so callers only ever
+            # see StructuredOutputError, never a raw TypeError/IndexError.
             last_error = error
     raise StructuredOutputError(
         f'model response failed schema validation after {MAX_STRUCTURED_OUTPUT_ATTEMPTS} attempts: {last_error}'

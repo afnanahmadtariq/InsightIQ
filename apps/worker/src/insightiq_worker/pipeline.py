@@ -51,7 +51,7 @@ WHERE id = %s AND "organizationId" = %s AND status = 'running'
 """
 
 FETCH_SOURCES_SQL = """
-SELECT id, url, title, publisher, excerpt
+SELECT id, url, title, publisher, excerpt, "publishedAt"
 FROM evidence_source
 WHERE "researchRunId" = %s AND "organizationId" = %s
 ORDER BY "retrievedAt" ASC

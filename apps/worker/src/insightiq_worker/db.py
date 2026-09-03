@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import time
@@ -25,6 +26,28 @@ log = logging.getLogger('insightiq.worker')
 
 def _generate_evidence_id() -> str:
     return uuid4().hex
+
+
+def _is_blank_excerpt(excerpt: str | None) -> bool:
+    return excerpt is None or not excerpt.strip()
+
+
+def _prefer_source_published_at(
+    source: dict, claims: list[evidence.ExtractedClaim]
+) -> list[evidence.ExtractedClaim]:
+    # The source's own publishedAt is a trustworthy, non-nullable-format Postgres
+    # date/datetime. Prefer it over an LLM-invented observedAt when the source has one.
+    published_at = source.get('publishedAt')
+    if published_at is None:
+        return claims
+    observed_at = _format_source_published_at(published_at)
+    return [claim.model_copy(update={'observedAt': observed_at}) for claim in claims]
+
+
+def _format_source_published_at(value: datetime.date | datetime.datetime) -> str:
+    if isinstance(value, datetime.datetime):
+        return value.date().isoformat()
+    return value.isoformat()
 
 
 def postgres_url(url: str) -> str:
@@ -96,18 +119,18 @@ class Worker:
                 attempt_count,
             )
             try:
-                sources, evidence, has_brief = connection.execute(
+                sources, evidence_count, has_brief = connection.execute(
                     COUNTS_SQL,
                     (run_id, organization_id, run_id, organization_id, run_id, organization_id),
                 ).fetchone()
-                stage = next_stage(status, sources, evidence, bool(has_brief))
+                stage = next_stage(status, sources, evidence_count, bool(has_brief))
                 log.info(
                     'job inspected worker_id=%s run_id=%s workspace_id=%s sources=%s evidence=%s has_brief=%s next_stage=%s',
                     self.worker_id,
                     run_id,
                     organization_id,
                     sources,
-                    evidence,
+                    evidence_count,
                     bool(has_brief),
                     stage or 'none',
                 )
@@ -126,6 +149,7 @@ class Worker:
                     return True
                 if stage == 'evidence':
                     self._run_evidence_stage(connection, run_id, organization_id)
+                    connection.execute(BACKOFF_SQL, (self.backoff_for, run_id, organization_id))
                     connection.commit()
                     elapsed_ms = round((time.monotonic() - started_at) * 1000)
                     log.info(
@@ -160,6 +184,11 @@ class Worker:
                     organization_id,
                     message,
                 )
+                # A DB error raised inside the try block (e.g. a constraint violation
+                # from the evidence-stage INSERT loop) leaves the connection in an
+                # aborted-transaction state. Roll back first, or FAIL_SQL itself raises
+                # InFailedSqlTransaction and the run never gets marked failed.
+                connection.rollback()
                 connection.execute(FAIL_SQL, (message, run_id, organization_id))
                 connection.commit()
                 return True
@@ -167,13 +196,30 @@ class Worker:
     def _run_evidence_stage(self, connection, run_id: str, organization_id: str) -> None:
         source_rows = connection.execute(FETCH_SOURCES_SQL, (run_id, organization_id)).fetchall()
         sources = [
-            {'id': source_id, 'url': url, 'title': title, 'publisher': publisher, 'excerpt': excerpt}
-            for source_id, url, title, publisher, excerpt in source_rows
+            {
+                'id': source_id,
+                'url': url,
+                'title': title,
+                'publisher': publisher,
+                'excerpt': excerpt,
+                'publishedAt': published_at,
+            }
+            for source_id, url, title, publisher, excerpt, published_at in source_rows
         ]
         config = ModelGatewayConfig.from_env()
         client = self._model_client_factory(config)
         claims_by_source = []
         for source in sources:
+            if _is_blank_excerpt(source['excerpt']):
+                log.warning(
+                    'evidence extraction skipped for source with no excerpt worker_id=%s run_id=%s workspace_id=%s source_id=%s',
+                    self.worker_id,
+                    run_id,
+                    organization_id,
+                    source['id'],
+                )
+                claims_by_source.append((source['id'], []))
+                continue
             try:
                 claims = evidence.extract_claims_for_source(client, config, source)
             except StructuredOutputError as error:
@@ -187,6 +233,7 @@ class Worker:
                     message,
                 )
                 claims = []
+            claims = _prefer_source_published_at(source, claims)
             claims_by_source.append((source['id'], claims))
         resolvable_source_ids = {source['id'] for source in sources}
         evidence_rows = evidence.assemble_evidence_rows(claims_by_source, resolvable_source_ids)

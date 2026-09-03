@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import re
 import string
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ SIGNAL_TYPES: frozenset[str] = frozenset(
 )
 
 SAME_FACT_OVERLAP_THRESHOLD = 0.6
+MAX_CLAIMS_PER_SOURCE = 10
 
 _TRAILING_PUNCTUATION = '.,!?'
 _WHITESPACE_PATTERN = re.compile(r'\s+')
@@ -32,9 +34,23 @@ class ExtractedClaim(BaseModel):
             raise ValueError(f'signalType must be one of {sorted(SIGNAL_TYPES)}, got {value!r}')
         return value
 
+    @field_validator('observedAt')
+    @classmethod
+    def _observed_at_must_be_iso_date_or_none(cls, value: str | None) -> str | None:
+        # observedAt lands in a Postgres DateTime column — never let an
+        # unparsed, model-authored string (e.g. "Q3 2024") reach the database.
+        # A badly-formatted date should not discard an otherwise-good claim,
+        # so this coerces to None instead of raising.
+        if not value:
+            return None
+        try:
+            return datetime.date.fromisoformat(value).isoformat()
+        except ValueError:
+            return None
+
 
 class SourceClaims(BaseModel):
-    claims: list[ExtractedClaim]
+    claims: list[ExtractedClaim] = Field(max_length=MAX_CLAIMS_PER_SOURCE)
 
 
 @dataclass(frozen=True)
@@ -54,6 +70,8 @@ def build_extraction_prompt(source: dict) -> tuple[str, str]:
         'never infer or assume facts not stated in the text. '
         f'Classify each claim with a signalType chosen from this closed list: {signal_type_list}. '
         'Assign a confidence between 0.0 and 1.0 reflecting how clearly the excerpt supports the claim. '
+        'Set observedAt to the date the claim was true or reported, formatted as YYYY-MM-DD, or null if no date is stated. '
+        f'Return at most {MAX_CLAIMS_PER_SOURCE} of the most significant claims. '
         'Respond with JSON matching exactly this shape: '
         '{"claims": [{"claim": "...", "signalType": "...", "confidence": 0.0, "observedAt": "..."}]}. '
         'If the excerpt supports no claims, return {"claims": []}.'
