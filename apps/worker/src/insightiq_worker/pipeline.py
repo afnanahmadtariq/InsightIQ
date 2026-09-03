@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 CLAIM_SQL = """
 WITH candidate AS (
   SELECT r.id, r."organizationId"
@@ -50,8 +52,18 @@ SET
 WHERE id = %s AND "organizationId" = %s AND status = 'running'
 """
 
+FETCH_SOURCES_SQL = """
+SELECT id, url, title, publisher, excerpt, "publishedAt"
+FROM evidence_source
+WHERE "researchRunId" = %s AND "organizationId" = %s
+ORDER BY "retrievedAt" ASC
+"""
 
-from typing import Optional
+INSERT_EVIDENCE_SQL = """
+INSERT INTO evidence
+  (id, "organizationId", "researchRunId", "sourceId", claim, "signalType", confidence, "observedAt")
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+"""
 
 
 def next_stage(status: str, sources: int, evidence: int, has_brief: bool) -> Optional[str]:

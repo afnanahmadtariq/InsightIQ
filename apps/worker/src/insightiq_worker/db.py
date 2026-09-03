@@ -4,9 +4,11 @@ import logging
 import os
 import time
 from pathlib import Path
+from typing import Callable, Optional
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import uuid4
 
+from insightiq_worker.model_gateway import ModelGatewayConfig, build_client
 from insightiq_worker.pipeline import BACKOFF_SQL, CLAIM_SQL, COUNTS_SQL, FAIL_SQL, next_stage
 
 log = logging.getLogger('insightiq.worker')
@@ -37,11 +39,17 @@ def load_database_url() -> str:
 
 
 class Worker:
-    def __init__(self, database_url: str, worker_id: str | None = None):
+    def __init__(
+        self,
+        database_url: str,
+        worker_id: Optional[str] = None,
+        model_client_factory: Optional[Callable[[ModelGatewayConfig], object]] = None,
+    ):
         self.database_url = database_url
         self.worker_id = worker_id or uuid4().hex[:12]
         self.lock_for = os.environ.get('WORKER_LOCK_INTERVAL', '10 minutes')
         self.backoff_for = os.environ.get('WORKER_BACKOFF_INTERVAL', '30 seconds')
+        self._model_client_factory = model_client_factory or build_client
 
     @classmethod
     def from_env(cls) -> Worker:
@@ -75,18 +83,18 @@ class Worker:
                 attempt_count,
             )
             try:
-                sources, evidence, has_brief = connection.execute(
+                sources, evidence_count, has_brief = connection.execute(
                     COUNTS_SQL,
                     (run_id, organization_id, run_id, organization_id, run_id, organization_id),
                 ).fetchone()
-                stage = next_stage(status, sources, evidence, bool(has_brief))
+                stage = next_stage(status, sources, evidence_count, bool(has_brief))
                 log.info(
                     'job inspected worker_id=%s run_id=%s workspace_id=%s sources=%s evidence=%s has_brief=%s next_stage=%s',
                     self.worker_id,
                     run_id,
                     organization_id,
                     sources,
-                    evidence,
+                    evidence_count,
                     bool(has_brief),
                     stage or 'none',
                 )
@@ -106,7 +114,13 @@ class Worker:
                 if stage == 'evidence':
                     from insightiq_worker.stages import process_evidence_stage
 
-                    inserted = process_evidence_stage(connection, run_id, organization_id)
+                    inserted = process_evidence_stage(
+                        connection,
+                        run_id,
+                        organization_id,
+                        model_client_factory=self._model_client_factory,
+                    )
+                    connection.execute(BACKOFF_SQL, (self.backoff_for, run_id, organization_id))
                     connection.commit()
                     elapsed_ms = round((time.monotonic() - started_at) * 1000)
                     log.info(
@@ -137,7 +151,7 @@ class Worker:
                 connection.commit()
                 elapsed_ms = round((time.monotonic() - started_at) * 1000)
                 log.info(
-                    'job cycle finished worker_id=%s run_id=%s workspace_id=%s stage=%s outcome=deferred reason=processor_not_implemented retry_in=%s duration_ms=%s',
+                    'job cycle finished worker_id=%s run_id=%s workspace_id=%s stage=%s outcome=deferred reason=unknown_stage retry_in=%s duration_ms=%s',
                     self.worker_id,
                     run_id,
                     organization_id,
@@ -155,6 +169,7 @@ class Worker:
                     organization_id,
                     message,
                 )
+                connection.rollback()
                 connection.execute(FAIL_SQL, (message, run_id, organization_id))
                 connection.commit()
                 return True

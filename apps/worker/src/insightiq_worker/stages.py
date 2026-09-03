@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, Callable, Optional, Union
 
+from insightiq_worker import evidence
 from insightiq_worker.graph_brief import build_brief_graph, new_id
 from insightiq_worker.graph_evidence import build_evidence_graph
+from insightiq_worker.model_gateway import ModelGatewayConfig, StructuredOutputError, build_client
 from insightiq_worker.models import RunContext, SourceBundle
+from insightiq_worker.pipeline import FETCH_SOURCES_SQL, INSERT_EVIDENCE_SQL
 
 log = logging.getLogger('insightiq.worker.stages')
 
@@ -43,12 +47,6 @@ JOIN evidence_source s
   ON s.id = e."sourceId" AND s."organizationId" = e."organizationId"
 WHERE e."researchRunId" = %s AND e."organizationId" = %s
 ORDER BY e.confidence DESC, e."createdAt" ASC
-"""
-
-INSERT_EVIDENCE_SQL = """
-INSERT INTO evidence (
-  id, "organizationId", "researchRunId", "sourceId", claim, "signalType", confidence, "createdAt"
-) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
 """
 
 INSERT_BRIEF_SQL = """
@@ -93,6 +91,30 @@ def _source_score(metadata: Any) -> float:
     return max(scores) if scores else 0.0
 
 
+def _gateway_enabled() -> bool:
+    return bool(os.environ.get('DASHSCOPE_API_KEY', '').strip())
+
+
+def _is_blank_excerpt(excerpt: Optional[str]) -> bool:
+    return excerpt is None or not excerpt.strip()
+
+
+def _format_source_published_at(value: Union[datetime.date, datetime.datetime]) -> str:
+    if isinstance(value, datetime.datetime):
+        return value.date().isoformat()
+    return value.isoformat()
+
+
+def _prefer_source_published_at(
+    source: dict, claims: list[evidence.ExtractedClaim]
+) -> list[evidence.ExtractedClaim]:
+    published_at = source.get('publishedAt')
+    if published_at is None:
+        return claims
+    observed_at = _format_source_published_at(published_at)
+    return [claim.model_copy(update={'observedAt': observed_at}) for claim in claims]
+
+
 def run_context_from_row(row: tuple[Any, ...]) -> RunContext:
     return RunContext(
         run_id=row[0],
@@ -106,19 +128,76 @@ def run_context_from_row(row: tuple[Any, ...]) -> RunContext:
     )
 
 
-def process_evidence_stage(connection, run_id: str, organization_id: str) -> int:
-    row = connection.execute(LOAD_RUN_SQL, (run_id, organization_id)).fetchone()
-    if not row:
-        raise RuntimeError('research run not found')
-    existing = connection.execute(
-        'SELECT COUNT(*)::int FROM evidence WHERE "researchRunId" = %s AND "organizationId" = %s',
-        (run_id, organization_id),
-    ).fetchone()[0]
-    if existing > 0:
-        connection.execute(RELEASE_LOCK_SQL, (run_id, organization_id))
-        log.info('evidence stage skipped run_id=%s existing_claims=%s', run_id, existing)
-        return existing
-    context = run_context_from_row(row)
+def _process_evidence_gateway(
+    connection,
+    run_id: str,
+    organization_id: str,
+    *,
+    model_client_factory: Optional[Callable[[ModelGatewayConfig], object]] = None,
+) -> int:
+    source_rows = connection.execute(FETCH_SOURCES_SQL, (run_id, organization_id)).fetchall()
+    sources = [
+        {
+            'id': source_id,
+            'url': url,
+            'title': title,
+            'publisher': publisher,
+            'excerpt': excerpt,
+            'publishedAt': published_at,
+        }
+        for source_id, url, title, publisher, excerpt, published_at in source_rows
+    ]
+    if not sources:
+        raise RuntimeError('no sources to normalize')
+
+    config = ModelGatewayConfig.from_env()
+    client = (model_client_factory or build_client)(config)
+    claims_by_source: list[tuple[str, list[evidence.ExtractedClaim]]] = []
+    for source in sources:
+        if _is_blank_excerpt(source['excerpt']):
+            log.warning(
+                'evidence extraction skipped for source with no excerpt run_id=%s source_id=%s',
+                run_id,
+                source['id'],
+            )
+            claims_by_source.append((source['id'], []))
+            continue
+        try:
+            extracted = evidence.extract_claims_for_source(client, config, source)
+        except StructuredOutputError as error:
+            log.warning(
+                'evidence extraction failed for source run_id=%s source_id=%s error=%s',
+                run_id,
+                source['id'],
+                str(error)[:1000],
+            )
+            extracted = []
+        claims_by_source.append((source['id'], _prefer_source_published_at(source, extracted)))
+
+    resolvable_source_ids = {source['id'] for source in sources}
+    evidence_rows = evidence.assemble_evidence_rows(claims_by_source, resolvable_source_ids)
+    if not evidence_rows:
+        raise RuntimeError('no evidence claims survived extraction')
+
+    for row in evidence_rows:
+        connection.execute(
+            INSERT_EVIDENCE_SQL,
+            (
+                new_id(),
+                organization_id,
+                run_id,
+                row.source_id,
+                row.claim,
+                row.signal_type,
+                row.confidence,
+                row.observed_at,
+            ),
+        )
+    log.info('evidence gateway complete run_id=%s claims=%s', run_id, len(evidence_rows))
+    return len(evidence_rows)
+
+
+def _process_evidence_langgraph(connection, run_id: str, organization_id: str, context: RunContext) -> int:
     source_rows = connection.execute(LOAD_SOURCES_SQL, (run_id, organization_id)).fetchall()
     if not source_rows:
         raise RuntimeError('no sources to normalize')
@@ -141,7 +220,6 @@ def process_evidence_stage(connection, run_id: str, organization_id: str) -> int
     if not drafts:
         raise RuntimeError('evidence normalization produced zero claims')
 
-    inserted = 0
     for draft in drafts:
         connection.execute(
             INSERT_EVIDENCE_SQL,
@@ -153,12 +231,41 @@ def process_evidence_stage(connection, run_id: str, organization_id: str) -> int
                 draft.claim,
                 draft.signal_type,
                 draft.confidence,
+                None,
             ),
         )
-        inserted += 1
-    connection.execute(RELEASE_LOCK_SQL, (run_id, organization_id))
-    log.info('evidence stage complete run_id=%s claims=%s', run_id, inserted)
-    return inserted
+    log.info('evidence langgraph complete run_id=%s claims=%s', run_id, len(drafts))
+    return len(drafts)
+
+
+def process_evidence_stage(
+    connection,
+    run_id: str,
+    organization_id: str,
+    *,
+    model_client_factory: Optional[Callable[[ModelGatewayConfig], object]] = None,
+) -> int:
+    row = connection.execute(LOAD_RUN_SQL, (run_id, organization_id)).fetchone()
+    if not row:
+        raise RuntimeError('research run not found')
+    existing = connection.execute(
+        'SELECT COUNT(*)::int FROM evidence WHERE "researchRunId" = %s AND "organizationId" = %s',
+        (run_id, organization_id),
+    ).fetchone()[0]
+    if existing > 0:
+        log.info('evidence stage skipped run_id=%s existing_claims=%s', run_id, existing)
+        return existing
+
+    if _gateway_enabled():
+        return _process_evidence_gateway(
+            connection,
+            run_id,
+            organization_id,
+            model_client_factory=model_client_factory,
+        )
+
+    context = run_context_from_row(row)
+    return _process_evidence_langgraph(connection, run_id, organization_id, context)
 
 
 def process_brief_stage(connection, run_id: str, organization_id: str) -> str:
