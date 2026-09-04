@@ -46,6 +46,9 @@ export class ResearchRunsService {
           offerId: offer.id,
           goal: input.goal,
           inputSnapshot: {
+            sender: {
+              name: session.user.name,
+            },
             prospect: {
               name: prospect.name,
               email: prospect.email,

@@ -24,12 +24,15 @@ SELECT
   p.name,
   p."companyName",
   o.name,
-  o."valueProposition"
+  o."valueProposition",
+  COALESCE(NULLIF(r."inputSnapshot" #>> '{sender,name}', ''), creator.name)
 FROM research_run r
 JOIN prospect p
   ON p.id = r."prospectId" AND p."organizationId" = r."organizationId"
 JOIN offer o
   ON o.id = r."offerId" AND o."organizationId" = r."organizationId"
+LEFT JOIN "user" creator
+  ON creator.id = r."createdById"
 WHERE r.id = %s AND r."organizationId" = %s
 """
 
@@ -125,6 +128,7 @@ def run_context_from_row(row: tuple[Any, ...]) -> RunContext:
         company_name=row[5],
         offer_name=row[6],
         value_proposition=row[7],
+        sender_name=row[8],
     )
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -25,6 +26,15 @@ SIGNAL_TYPES = (
     'partnership',
     'role-context',
     'other',
+)
+
+SENDER_PLACEHOLDER = re.compile(
+    r'\[(?:your|sender)\s+name\]|\{\{\s*(?:your|sender)[ _-]?name\s*\}\}',
+    re.IGNORECASE,
+)
+SIGNOFF_AT_END = re.compile(
+    r'(?:best(?: regards)?|regards|sincerely|thanks|thank you),?\s*$',
+    re.IGNORECASE,
 )
 
 
@@ -54,6 +64,23 @@ class LlmRuntimeConfig:
     api_key: str
     base_url: Optional[str]
     model: str
+
+
+def personalize_outreach_draft(draft: Optional[str], sender_name: Optional[str]) -> Optional[str]:
+    if draft is None or not draft.strip():
+        return None
+
+    name = ' '.join((sender_name or '').split())
+    personalized = SENDER_PLACEHOLDER.sub(name, draft).strip()
+    if not name:
+        return SIGNOFF_AT_END.sub('', personalized).strip()
+
+    signature_tail = '\n'.join(personalized.splitlines()[-3:])
+    if name.casefold() in signature_tail.casefold():
+        return personalized
+    if SIGNOFF_AT_END.search(personalized):
+        return f'{personalized}\n{name}'
+    return f'{personalized}\n\nBest,\n{name}'
 
 
 def resolve_llm_config() -> LlmRuntimeConfig:
@@ -240,6 +267,7 @@ def polish_brief(context: RunContext, sections: BriefSections, evidence: list[di
             'company': context.company_name,
             'offer': context.offer_name,
             'goal': context.goal,
+            'sender_name': context.sender_name,
             'buyer_outcome': buyer_outcome,
             'evidence': evidence[:6],
             'draft': sections.model_dump(),
@@ -255,6 +283,7 @@ def polish_brief(context: RunContext, sections: BriefSections, evidence: list[di
         'and diagnostic. Objection handling should use practical if/then responses. Next steps must be concrete. '
         'If the goal is outreach, keep the email under 120 words. Use ONLY provided evidence claims; never invent facts.'
         ' Never repeat seller-centric intent such as wanting someone to buy; write in terms of the buyer outcome provided.'
+        ' For outreach, close with the exact sender_name supplied. Never use a placeholder such as [Your Name].'
     )
     try:
         payload = _chat_json(system, prompt)
@@ -268,12 +297,13 @@ def polish_brief(context: RunContext, sections: BriefSections, evidence: list[di
         'objection_handling': copy.objection_handling or sections.objection_handling,
         'next_steps': copy.next_steps or sections.next_steps,
     }
+    outreach_draft = copy.outreach_draft if context.goal == 'outreach' else sections.outreach_draft
     return sections.model_copy(
         update={
             'summary': copy.summary,
             'talking_points': copy.talking_points,
             'questions_to_ask': copy.questions_to_ask if context.goal == 'meeting' else [],
-            'outreach_draft': copy.outreach_draft if context.goal == 'outreach' else sections.outreach_draft,
+            'outreach_draft': personalize_outreach_draft(outreach_draft, context.sender_name),
             **{key: value for key, value in extra.items() if value},
         }
     )
