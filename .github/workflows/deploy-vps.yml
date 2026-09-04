@@ -9,6 +9,10 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/insightiq-api
   WORKER_IMAGE_NAME: ${{ github.repository_owner }}/insightiq-worker
 
+concurrency:
+  group: deploy-api-${{ github.ref_type == 'tag' && 'production' || github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     tags:
@@ -33,7 +37,21 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql://prisma:prisma@localhost:5432/prisma?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/insightiq?schema=public
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: insightiq
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d insightiq"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -44,24 +62,44 @@ jobs:
           node-version: "24.14.0"
           cache: npm
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Setup worker
+        run: npm run worker:setup
 
       - name: Generate database client
         run: npm run db:generate
 
+      - name: Apply migrations
+        run: npm run db:migrate
+
       - name: Lint
-        run: npm run lint -- --filter=@insightiq/api...
+        run: npm run lint -- --filter=@insightiq/api... --filter=@insightiq/worker
 
       - name: Check types
-        run: npm run check-types -- --filter=@insightiq/api...
+        run: npm run check-types -- --filter=@insightiq/api... --filter=@insightiq/worker
 
-      - name: Build API
-        run: npm run build -- --filter=@insightiq/api
+      - name: Build backend
+        run: npm run build -- --filter=@insightiq/api --filter=@insightiq/worker
 
       - name: Run API tests
         working-directory: apps/api
         run: node --test test/*.test.cjs
+
+      - name: Run API integration tests
+        working-directory: apps/api
+        env:
+          INTEGRATION_TESTS: "true"
+        run: node --test test/*.integration.test.cjs
+
+      - name: Run worker tests
+        run: npm run test -- --filter=@insightiq/worker
 
   build-image:
     needs: verify
@@ -149,7 +187,18 @@ jobs:
             set -e
 
             cd "$HOME/insightiq"
+            for required in POSTGRES_PASSWORD BETTER_AUTH_SECRET RESEND_API_KEY TAVILY_API_KEY DASHSCOPE_API_KEY; do
+              printf '%s\n' "$PRODUCTION_ENV" | grep -Eq "^${required}=.+$" || {
+                echo "Missing required production setting: ${required}" >&2
+                exit 1
+              }
+            done
+            if printf '%s\n' "$PRODUCTION_ENV" | grep -Eq '^(POSTGRES_PASSWORD=change-me-before-production|BETTER_AUTH_SECRET=replace-)'; then
+              echo "Production environment contains placeholder credentials" >&2
+              exit 1
+            fi
             printf '%s\nAPI_IMAGE=%s\nWORKER_IMAGE=%s\nAPI_RUN_DB_SETUP_ON_STARTUP=false\n' "$PRODUCTION_ENV" "$API_IMAGE" "$WORKER_IMAGE" > .env
+            docker compose config --quiet
             test -f nginx/certs/origin.crt
             test -f nginx/certs/origin.key
 
@@ -166,6 +215,6 @@ jobs:
             test -n "$(docker compose ps -q --status running api)"
             test -n "$(docker compose ps -q --status running worker)"
             test -n "$(docker compose ps -q --status running nginx)"
-            docker image prune -af
+            docker image prune -f
 
             echo "Production API deployment complete"

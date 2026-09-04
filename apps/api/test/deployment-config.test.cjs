@@ -29,10 +29,11 @@ test('API deployment migrates first and recreates nginx separately', () => {
   assert.match(apiWorkflow, /--force-recreate[^\n]*nginx/)
 })
 
-test('unused images are pruned only after service health checks', () => {
-  const prune = apiWorkflow.indexOf('docker image prune -af')
+test('only dangling images are pruned after service health checks so tagged rollback images remain', () => {
+  const prune = apiWorkflow.indexOf('docker image prune -f')
   const finalHealth = apiWorkflow.lastIndexOf('docker compose ps -q --status running nginx')
   assert.ok(prune > finalHealth)
+  assert.doesNotMatch(apiWorkflow, /docker image prune -af/)
   assert.doesNotMatch(apiWorkflow, /docker (?:system|volume) prune/)
 })
 
@@ -59,6 +60,41 @@ test('production deployment builds, pulls, and starts the worker service', () =>
   assert.match(apiWorkflow, /docker compose pull api worker/)
   assert.match(apiWorkflow, /docker compose up -d --no-build --no-deps --wait --wait-timeout 60 api worker/)
   assert.match(apiWorkflow, /docker compose ps -q --status running worker/)
+})
+
+test('production release verifies worker code and backend integration tests', () => {
+  assert.match(apiWorkflow, /npm run worker:setup/)
+  assert.match(apiWorkflow, /npm run test -- --filter=@insightiq\/worker/)
+  assert.match(apiWorkflow, /INTEGRATION_TESTS: ["']true["']/)
+  assert.match(apiWorkflow, /node --test test\/\*\.integration\.test\.cjs/)
+})
+
+test('production deploy validates required provider settings before changing services', () => {
+  const preflight = apiWorkflow.indexOf('for required in POSTGRES_PASSWORD')
+  const pull = apiWorkflow.indexOf('docker compose pull api worker')
+  assert.ok(preflight > 0 && pull > preflight)
+  assert.match(apiWorkflow, /TAVILY_API_KEY DASHSCOPE_API_KEY/)
+  assert.match(apiWorkflow, /docker compose config --quiet/)
+})
+
+test('production deploys cannot overlap', () => {
+  for (const workflow of [apiWorkflow, webWorkflow]) {
+    assert.match(workflow, /cancel-in-progress: false/)
+  }
+})
+
+test('API image generates Prisma Client before compiling the database package', () => {
+  const dockerfile = readFileSync(resolve(repositoryRoot, 'apps/api/Dockerfile'), 'utf8')
+  const generate = dockerfile.indexOf('npm run generate --workspace=@insightiq/db')
+  const build = dockerfile.indexOf('npm run build --workspace=@insightiq/db')
+  assert.ok(generate > 0 && build > generate)
+})
+
+test('Cloudflare release installs its browser and validates an OpenNext artifact before deploy', () => {
+  assert.match(webWorkflow, /npx playwright install chromium --with-deps/)
+  assert.match(webWorkflow, /npm run cf:build --workspace=@insightiq\/web/)
+  assert.match(webWorkflow, /npx wrangler deploy --dry-run/)
+  assert.match(webWorkflow, /NEXT_PUBLIC_API_URL must be a non-empty HTTPS URL/)
 })
 
 test('CI prepares the Python worker before repository-wide quality gates', () => {

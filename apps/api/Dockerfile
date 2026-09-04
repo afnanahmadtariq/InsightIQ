@@ -9,6 +9,7 @@ RUN npm ci
 COPY apps/api apps/api
 COPY packages/db packages/db
 ENV DATABASE_URL=postgresql://prisma:prisma@localhost:5432/prisma?schema=public
+RUN npm run generate --workspace=@insightiq/db
 RUN npm run build --workspace=@insightiq/db
 RUN npm run build --workspace=@insightiq/api
 
