@@ -47,6 +47,7 @@ export default defineConfig({
       env: {
         ...hostEnv,
         NEXT_PUBLIC_API_URL: `http://127.0.0.1:${apiPort}`,
+        NEXT_DIST_DIR: `.next-e2e-${webPort}`,
         PORT: String(webPort),
       },
     },
@@ -66,6 +67,7 @@ export default defineConfig({
       env: {
         ...hostEnv,
         NEXT_PUBLIC_API_URL: `http://127.0.0.1:${apiPort}`,
+        NEXT_DIST_DIR: `.next-e2e-${webPort}`,
         PORT: String(webPort),
       },
     },

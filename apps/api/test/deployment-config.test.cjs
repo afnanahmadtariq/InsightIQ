@@ -10,6 +10,7 @@ const ciWorkflow = readFileSync(resolve(repositoryRoot, '.github/workflows/ci.ym
 const rootPackage = readFileSync(resolve(repositoryRoot, 'package.json'), 'utf8')
 const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
 const playwrightConfig = readFileSync(resolve(repositoryRoot, 'apps/web/playwright.config.ts'), 'utf8')
+const researchJourney = readFileSync(resolve(repositoryRoot, 'apps/web/e2e/research-journey.spec.ts'), 'utf8')
 
 test('production deployments are triggered by version tags, not branch pushes', () => {
   for (const workflow of [apiWorkflow, webWorkflow]) {
@@ -45,10 +46,10 @@ test('deployment configuration contains no Kelvo paths or images', () => {
   assert.doesNotMatch(`${apiWorkflow}\n${webWorkflow}`, /kelvo/i)
 })
 
-test('API deployment passes project-scoped Tavily configuration to the container', () => {
+test('API deployment passes Tavily discovery configuration to the container', () => {
   assert.match(compose, /TAVILY_API_KEY/)
-  assert.match(compose, /TAVILY_PROJECT_ID/)
   assert.match(compose, /TAVILY_SEARCH_DEPTH/)
+  assert.match(compose, /TAVILY_MAX_RESULTS/)
 })
 
 test('production deployment builds, pulls, and starts the worker service', () => {
@@ -73,4 +74,17 @@ test('CI prepares the Python worker before repository-wide quality gates', () =>
 test('real-stack browser tests isolate local auth trust and cookie settings', () => {
   assert.match(playwrightConfig, /BETTER_AUTH_TRUSTED_ORIGINS: `http:\/\/127\.0\.0\.1:\$\{webPort\}`/)
   assert.match(playwrightConfig, /BETTER_AUTH_COOKIE_DOMAIN: ''/)
+})
+
+test('real-stack browser tests build the database package before Playwright starts', () => {
+  const realStackJob = ciWorkflow.slice(ciWorkflow.indexOf('e2e-real-stack:'))
+  const generateDatabase = realStackJob.indexOf('npm run db:generate')
+  const buildDatabase = realStackJob.indexOf('npm run build --workspace=@insightiq/db')
+  const runPlaywright = realStackJob.indexOf('npx playwright test e2e/research-journey.spec.ts')
+
+  assert.ok(generateDatabase >= 0 && buildDatabase > generateDatabase && runPlaywright > buildDatabase)
+})
+
+test('real-stack research journey follows the configured API port', () => {
+  assert.match(researchJourney, /process\.env\.E2E_API_PORT/)
 })

@@ -141,6 +141,9 @@ jobs:
       - name: Generate database client
         run: npm run db:generate
 
+      - name: Build database package
+        run: npm run build --workspace=@insightiq/db
+
       - name: Apply migrations
         run: npm run db:migrate
 

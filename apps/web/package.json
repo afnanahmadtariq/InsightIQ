@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
-    "clean": "rimraf .next .open-next .wrangler",
+    "clean": "rimraf .next .next-e2e-* .open-next .wrangler",
     "start": "next start",
     "lint": "eslint .",
     "check-types": "next typegen && tsc --noEmit --incremental false",

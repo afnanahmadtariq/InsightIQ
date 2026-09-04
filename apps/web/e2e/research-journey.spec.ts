@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 
-const apiURL = (process.env.PLAYWRIGHT_API_URL || 'http://localhost:3001').replace(/\/+$/, '')
+const apiURL = (
+  process.env.PLAYWRIGHT_API_URL || `http://127.0.0.1:${process.env.E2E_API_PORT || 3001}`
+).replace(/\/+$/, '')
 const e2eSecret = process.env.E2E_SEED_SECRET || 'e2e-local-secret-ok'
 
 test.describe.configure({ mode: 'serial' })

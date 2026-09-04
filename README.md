@@ -23,7 +23,7 @@ npm run dev
 
 Worker setup is explicit so JavaScript-only installs and deployment CI do not require Python. Re-run `npm run worker:setup` after changing worker dependencies; API or frontend-only development can skip it.
 
-The worker uses **psycopg**, **Pydantic**, **LangGraph**, **httpx**, **BeautifulSoup**, and optional **Crawl4AI** (`WORKER_USE_CRAWL4AI=true`) to enrich sources, extract citable claims, and synthesize deal briefs. With `TAVILY_API_KEY` set, the demo and worker prefer live web discovery; with `OPENAI_API_KEY` or `DASHSCOPE_API_KEY` (plus optional `pip install -e '.[llm]'`), claims and brief copy are LLM-refined.
+The worker uses **psycopg**, **Pydantic**, **LangGraph**, **httpx**, **BeautifulSoup**, and optional **Crawl4AI** (`WORKER_USE_CRAWL4AI=true`) to enrich sources, extract citable claims, and synthesize deal briefs. With `TAVILY_API_KEY` set, the demo and worker prefer live web discovery; with `DASHSCOPE_API_KEY` set (plus optional `pip install -e '.[llm]'`), claims and brief copy are refined with Qwen.
 
 ```bash
 npm run worker:setup
@@ -59,9 +59,8 @@ Production requires at least:
 - `PRIMARY_DOMAIN` and `API_DOMAIN`
 - database and deployment variables already listed in `.env.example`
 
-Set `TAVILY_API_KEY` for reliable production web discovery. Tavily's SDK supports
-keyless local evaluation with a shared limit; `TAVILY_PROJECT_ID`, search depth,
-and per-query result count are optional and documented in `.env.example`.
+Set `TAVILY_API_KEY` for reliable production web discovery. Search depth and
+per-query result count are configured in `.env.example`.
 
 ## Research foundation
 
