@@ -26,11 +26,12 @@ export function TwoFactorChallenge({ context }: { context: AccountContext }) {
   const [sent, setSent] = useState(false)
   const [trustDevice, setTrustDevice] = useState(false)
 
-  function chooseMethod(next: ChallengeMethod) {
-    setMethod(next)
-    setCode('')
-    setError('')
-  }
+function chooseMethod(next: ChallengeMethod) {
+  setMethod(next)
+  setCode('')
+  setError('')
+  if (next !== 'email') setSent(false)
+}
 
   async function send() {
     setPending(true)
