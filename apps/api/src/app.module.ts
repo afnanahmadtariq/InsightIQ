@@ -8,9 +8,11 @@ import { resolve } from 'node:path'
 import { auth } from './auth/auth'
 import { InsightIQAuthModule } from './auth/insightiq-auth.module'
 import { validateEnvironment } from './config/env.validation'
+import { E2eModule } from './e2e/e2e.module'
 import { ResearchModule } from './research/research.module'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const e2eEnabled = process.env.E2E_ENABLED === 'true'
 
 @Controller()
 class HealthController {
@@ -61,6 +63,7 @@ class WaitlistController {
     }),
     InsightIQAuthModule,
     ResearchModule,
+    ...(e2eEnabled ? [E2eModule] : []),
   ],
   controllers: [HealthController, WaitlistController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

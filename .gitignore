@@ -28,6 +28,8 @@ apps/web/next-env.d.ts
 # Coverage and test artifacts
 coverage/
 .nyc_output/
+apps/web/test-results/
+apps/web/playwright-report/
 
 # Logs
 *.log

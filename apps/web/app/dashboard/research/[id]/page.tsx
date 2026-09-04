@@ -27,7 +27,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const evidenceComplete = run.evidence.length > 0
 
   return <WorkspacePage>
-    <ResearchRunPoller status={run.status} hasSources={discoveryComplete} hasBrief={Boolean(run.brief)}/>
+    <ResearchRunPoller status={run.status} hasBrief={Boolean(run.brief)}/>
     <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Research queue</Link>
     <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} connected to <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
 

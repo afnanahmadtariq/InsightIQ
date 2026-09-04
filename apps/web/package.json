@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "check-types": "next typegen && tsc --noEmit --incremental false",
     "cf:build": "opennextjs-cloudflare build",
-    "cf:deploy": "opennextjs-cloudflare deploy"
+    "cf:deploy": "opennextjs-cloudflare deploy",
+    "test": "playwright test",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.23",
@@ -21,6 +23,7 @@
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.0.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
