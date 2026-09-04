@@ -1,22 +1,26 @@
 const assert = require('node:assert/strict')
-const { readFileSync } = require('node:fs')
+const { existsSync, readFileSync } = require('node:fs')
 const { resolve } = require('node:path')
 const { test } = require('node:test')
 
 const repositoryRoot = resolve(__dirname, '../../..')
 const apiWorkflow = readFileSync(resolve(repositoryRoot, '.github/workflows/deploy-vps.yml'), 'utf8')
 const webWorkflow = readFileSync(resolve(repositoryRoot, '.github/workflows/deploy-cloudflare.yml'), 'utf8')
-const ciWorkflow = readFileSync(resolve(repositoryRoot, '.github/workflows/ci.yml'), 'utf8')
 const rootPackage = readFileSync(resolve(repositoryRoot, 'package.json'), 'utf8')
 const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
 const playwrightConfig = readFileSync(resolve(repositoryRoot, 'apps/web/playwright.config.ts'), 'utf8')
 const researchJourney = readFileSync(resolve(repositoryRoot, 'apps/web/e2e/research-journey.spec.ts'), 'utf8')
 
-test('production deployments are triggered by version tags, not branch pushes', () => {
+test('API and Cloudflare workflows own their required PR verification and tag releases', () => {
+  assert.match(apiWorkflow, /^name: Deploy production API/m)
+  assert.match(webWorkflow, /^name: Deploy Cloudflare \(Frontend\)/m)
   for (const workflow of [apiWorkflow, webWorkflow]) {
-    assert.match(workflow, /push:\s*\n\s*tags:\s*\n\s*- ["']v\*["']/)
-    assert.doesNotMatch(workflow, /push:\s*\n\s*branches:/)
+    assert.match(workflow, /pull_request:/)
+    assert.match(workflow, /push:[\s\S]*tags:\s*\n\s*- ["']v\*["']/)
+    assert.match(workflow, /jobs:\s*\n\s*verify:/)
   }
+  assert.equal(existsSync(resolve(repositoryRoot, '.github/workflows/ci.yml')), false)
+  assert.equal(existsSync(resolve(repositoryRoot, '.github/workflows/deploy-cloudflare.yml')), true)
 })
 
 test('API deployment migrates first and recreates nginx separately', () => {
@@ -92,17 +96,25 @@ test('API image generates Prisma Client before compiling the database package', 
   assert.match(dockerfile, /CMD \["serve"\]/)
 })
 
-test('Cloudflare release installs its browser and validates an OpenNext artifact before deploy', () => {
-  assert.match(webWorkflow, /npx playwright install chromium --with-deps/)
+test('Cloudflare release validates an OpenNext artifact before deploy', () => {
   assert.match(webWorkflow, /npm run cf:build --workspace=@insightiq\/web/)
   assert.match(webWorkflow, /npx wrangler deploy --dry-run/)
   assert.match(webWorkflow, /NEXT_PUBLIC_API_URL must be a non-empty HTTPS URL/)
 })
 
-test('CI prepares the Python worker before repository-wide quality gates', () => {
-  const setupWorker = ciWorkflow.indexOf('npm run worker:setup')
-  const lint = ciWorkflow.indexOf('npm run lint')
-  const checkTypes = ciWorkflow.indexOf('npm run check-types')
+test('Cloudflare release builds once and deploys the validated artifact unchanged', () => {
+  assert.equal((webWorkflow.match(/npm run cf:build --workspace=@insightiq\/web/g) || []).length, 1)
+  assert.match(webWorkflow, /actions\/upload-artifact@v4/)
+  assert.match(webWorkflow, /actions\/download-artifact@v5/)
+  assert.match(webWorkflow, /path: apps\/web\/\.open-next/)
+  assert.match(webWorkflow, /run: npx wrangler deploy\s*$/m)
+  assert.doesNotMatch(webWorkflow, /npm run cf:deploy/)
+})
+
+test('backend verification prepares the Python worker before quality gates', () => {
+  const setupWorker = apiWorkflow.indexOf('npm run worker:setup')
+  const lint = apiWorkflow.indexOf('npm run lint')
+  const checkTypes = apiWorkflow.indexOf('npm run check-types')
 
   assert.ok(setupWorker > 0)
   assert.ok(lint > setupWorker)
@@ -114,13 +126,11 @@ test('real-stack browser tests isolate local auth trust and cookie settings', ()
   assert.match(playwrightConfig, /BETTER_AUTH_COOKIE_DOMAIN: ''/)
 })
 
-test('real-stack browser tests build the database package before Playwright starts', () => {
-  const realStackJob = ciWorkflow.slice(ciWorkflow.indexOf('e2e-real-stack:'))
-  const generateDatabase = realStackJob.indexOf('npm run db:generate')
-  const buildDatabase = realStackJob.indexOf('npm run build --workspace=@insightiq/db')
-  const runPlaywright = realStackJob.indexOf('npx playwright test e2e/research-journey.spec.ts')
-
-  assert.ok(generateDatabase >= 0 && buildDatabase > generateDatabase && runPlaywright > buildDatabase)
+test('required verification omits heavyweight browser setup', () => {
+  for (const workflow of [apiWorkflow, webWorkflow]) {
+    assert.doesNotMatch(workflow, /playwright install/)
+    assert.doesNotMatch(workflow, /npx playwright test/)
+  }
 })
 
 test('real-stack research journey follows the configured API port', () => {

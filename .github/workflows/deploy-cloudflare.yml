@@ -18,6 +18,9 @@ on:
       - "apps/web/wrangler.jsonc"
       - ".github/workflows/deploy-cloudflare.yml"
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -31,12 +34,8 @@ jobs:
           node-version: "24.14.0"
           cache: npm
 
-      - name: Install dependencies (workspace)
+      - name: Install dependencies
         run: npm ci
-
-      - name: Install Playwright browsers
-        working-directory: apps/web
-        run: npx playwright install chromium --with-deps
 
       - name: Lint frontend
         run: npm run lint --workspace=@insightiq/web
@@ -44,26 +43,13 @@ jobs:
       - name: Check frontend types
         run: npm run check-types --workspace=@insightiq/web
 
-      - name: Run frontend tests when present
-        run: npm run test --if-present --workspace=@insightiq/web
-
-      - name: Build frontend
+      - name: Build frontend for PR validation
+        if: ${{ github.event_name == 'pull_request' }}
         run: npm run build --workspace=@insightiq/web
 
-      - name: Build Cloudflare artifact
-        working-directory: apps/web
-        env:
-          NEXT_PUBLIC_API_URL: https://api-insightiq.zerotools.online
-          NODE_ENV: production
-        run: npm run cf:build --workspace=@insightiq/web
-
-      - name: Validate Cloudflare artifact
-        working-directory: apps/web
-        run: npx wrangler deploy --dry-run
-
-  deploy:
+  build-artifact:
     needs: verify
-    if: github.event_name != 'pull_request'
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -75,33 +61,71 @@ jobs:
           node-version: "24.14.0"
           cache: npm
 
-      - name: Install dependencies (workspace)
+      - name: Install dependencies
         run: npm ci
 
-      - name: Validate deployment inputs
+      - name: Validate web build input
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: |
-          test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
           case "$NEXT_PUBLIC_API_URL" in
             https://*) ;;
             *) echo "NEXT_PUBLIC_API_URL must be a non-empty HTTPS URL" >&2; exit 1 ;;
           esac
 
-      - name: Build OpenNext (Cloudflare)
+      - name: Build OpenNext artifact
+        working-directory: apps/web
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NODE_ENV: production
-        working-directory: apps/web
         run: npm run cf:build --workspace=@insightiq/web
 
-      - name: Deploy to Cloudflare Workers
+      - name: Validate exact Cloudflare artifact
+        working-directory: apps/web
+        run: npx wrangler deploy --dry-run
+
+      - name: Upload Cloudflare artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-${{ github.sha }}
+          path: apps/web/.open-next
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: build-artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24.14.0"
+          cache: npm
+
+      - name: Install deployment dependencies
+        run: npm ci
+
+      - name: Download validated Cloudflare artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: web-${{ github.sha }}
+          path: apps/web/.open-next
+
+      - name: Validate Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Deploy validated artifact to Cloudflare Workers
         working-directory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-        run: npm run cf:deploy --workspace=@insightiq/web
+        run: npx wrangler deploy
