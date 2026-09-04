@@ -1,8 +1,9 @@
-import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
+import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { db } from '@insightiq/db'
 import { AccountContextService, type AuthenticatedSession } from '../auth/account-context.service'
 import { TavilySearchService } from '../tavily/tavily-search.service'
-import { buildDiscoveryQueries, deduplicateDiscoveredSources } from './research-discovery'
+import { buildDiscoveryQueries, deduplicateDiscoveredSources, type DiscoveredSource } from './research-discovery'
+import { WikipediaDiscoveryService } from './wikipedia-discovery.service'
 
 function safeErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : 'Source discovery failed'
@@ -11,9 +12,12 @@ function safeErrorMessage(error: unknown) {
 
 @Injectable()
 export class ResearchDiscoveryService {
+  private readonly log = new Logger(ResearchDiscoveryService.name)
+
   constructor(
     private readonly accounts: AccountContextService,
     private readonly tavily: TavilySearchService,
+    private readonly wikipedia: WikipediaDiscoveryService,
   ) {}
 
   async discover(session: AuthenticatedSession, id: string) {
@@ -37,12 +41,31 @@ export class ResearchDiscoveryService {
       const settled = await Promise.allSettled(queries.map((item) => this.tavily.search({ ...item, sessionId: run.id })))
       const batches = settled.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
       const failedQueries = settled.length - batches.length
-      if (!batches.length) {
-        const failure = settled.find((result) => result.status === 'rejected')
-        throw failure?.status === 'rejected' ? failure.reason : new Error('Source discovery failed')
+      let sources: DiscoveredSource[] = batches.length ? deduplicateDiscoveredSources(batches) : []
+      let wikipediaSources = 0
+
+      if (!sources.length) {
+        this.log.warn('Tavily returned no sources for run=%s; falling back to Wikipedia', run.id)
+        const fallback = await this.wikipedia.discover(run.prospect)
+        wikipediaSources = fallback.length
+        sources = fallback.map((source) => ({
+          url: source.url,
+          title: source.title,
+          publisher: source.publisher,
+          excerpt: source.excerpt,
+          publishedAt: null,
+          score: source.score,
+          matches: [{
+            kind: 'wikipedia-fallback',
+            query: source.query,
+            requestId: 'wikipedia',
+            responseTimeMs: 0,
+            credits: null,
+            score: source.score,
+          }],
+        }))
       }
 
-      const sources = deduplicateDiscoveredSources(batches)
       if (!sources.length) {
         throw new UnprocessableEntityException('No public sources were found for the supplied prospect identifiers')
       }
@@ -61,19 +84,25 @@ export class ResearchDiscoveryService {
           url: source.url,
           title: source.title,
           publisher: source.publisher,
-          sourceType: 'tavily-search',
+          sourceType: source.matches.some((match) => match.kind === 'wikipedia-fallback') ? 'wikipedia' : 'tavily-search',
           publishedAt: source.publishedAt,
           excerpt: source.excerpt,
-          metadata: { provider: 'tavily', matches: source.matches },
+          metadata: {
+            provider: source.matches.some((match) => match.kind === 'wikipedia-fallback') ? 'wikipedia' : 'tavily',
+            matches: source.matches,
+          },
         },
         update: {
           title: source.title,
           publisher: source.publisher,
-          sourceType: 'tavily-search',
+          sourceType: source.matches.some((match) => match.kind === 'wikipedia-fallback') ? 'wikipedia' : 'tavily-search',
           publishedAt: source.publishedAt,
           retrievedAt: new Date(),
           excerpt: source.excerpt,
-          metadata: { provider: 'tavily', matches: source.matches },
+          metadata: {
+            provider: source.matches.some((match) => match.kind === 'wikipedia-fallback') ? 'wikipedia' : 'tavily',
+            matches: source.matches,
+          },
         },
       })))
 
@@ -83,6 +112,7 @@ export class ResearchDiscoveryService {
         sourcesCollected: sources.length,
         queriesCompleted: batches.length,
         failedQueries,
+        wikipediaSources,
       }
     } catch (error) {
       await db.researchRun.updateMany({
