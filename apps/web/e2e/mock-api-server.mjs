@@ -243,7 +243,14 @@ const server = http.createServer(async (req, res) => {
         status: 'ready',
         generatedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        sections: { summary: detail.evidence[0]?.claim || e2eFixtures.citation.claim },
+        sections: {
+          summary: `${detail.evidence[0]?.claim || e2eFixtures.citation.claim} Use this verified signal to test the prospect's current priority before positioning the offer.`,
+          personalized_opener: `${run.prospect.name.split(' ')[0]}, I noticed the latest signal at ${run.prospect.companyName}. How is that shaping priorities right now?`,
+          talking_points: ['Lead with the verified signal, then validate whether it maps to an active priority.'],
+          questions_to_ask: ['What changed recently that made this conversation worth having?'],
+          objection_handling: ['If timing is tight: agree on the event that would make this urgent.'],
+          next_steps: ['Confirm one priority and the right owner for a focused follow-up.'],
+        },
         researchRun: {
           id: detail.id,
           goal: detail.goal,

@@ -8,11 +8,11 @@ export function DealBriefPreview() {
       <Sparkles size={15}/><span>AI synthesis</span>
     </div>
 
-    <article className="rounded-[22px] border border-iq-200 bg-white/95 p-6 shadow-panel max-sm:p-[18px]" aria-label="Example InsightIQ Deal Brief">
+    <article className="rounded-[22px] border border-iq-200 bg-white/95 p-6 shadow-panel max-sm:p-[18px]" aria-label="Example InsightIQ conversation brief">
       <header className="flex items-center justify-between border-b border-iq-100 pb-4">
         <div className="flex items-center gap-2.5">
           <Image className="size-[30px] rounded-lg" src="/insightiq-logo.svg" alt="" width={30} height={30}/>
-          <p className="m-0 grid gap-px"><b className="text-xs text-iq-900">Deal Brief</b><small className="text-[.62rem] text-iq-500">Prepared 2 minutes ago</small></p>
+          <p className="m-0 grid gap-px"><b className="text-xs text-iq-900">Conversation brief</b><small className="text-[.62rem] text-iq-500">Prepared 2 minutes ago</small></p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full bg-[#edf9f4] px-2.5 py-1.5 text-[.65rem] font-semibold text-success max-sm:hidden"><Check size={12}/> Evidence verified</span>
       </header>
@@ -20,7 +20,7 @@ export function DealBriefPreview() {
       <section className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-5 max-sm:grid-cols-[auto_1fr]">
         <div className="grid size-12 place-items-center rounded-[14px] bg-iq-100 text-xs font-bold text-brand">AM</div>
         <div className="min-w-0"><h2 className="m-0 text-base text-iq-900">Alex Morgan</h2><p className="mt-1 mb-0 text-xs text-iq-500">VP of Revenue · Northstar Cloud</p></div>
-        <span className="grid justify-items-end text-[.58rem] text-iq-500 uppercase max-sm:hidden"><b className="text-lg leading-none text-brand-bright">92%</b> offer fit</span>
+        <span className="rounded-full bg-iq-100 px-2.5 py-1.5 text-[.62rem] font-semibold text-brand max-sm:hidden">Meeting prep</span>
       </section>
 
       <section className="grid grid-cols-[auto_1fr_auto] gap-3 rounded-[14px] border border-iq-200 bg-iq-50 p-4">

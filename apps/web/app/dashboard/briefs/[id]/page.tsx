@@ -1,12 +1,10 @@
-import { ArrowLeft, FileCheck2, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, FileCheck2, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BriefSections } from '../../../../components/brief-sections'
-import { ButtonLink } from '../../../../components/ui/button'
-import { EmptyState } from '../../../../components/ui/empty-state'
 import { StatusBadge } from '../../../../components/ui/status-badge'
-import { WorkspaceHeader, WorkspacePage, WorkspaceSection, WorkspaceSplit } from '../../../../components/workspace/workspace-page'
-import { ItemBody, ItemIcon } from '../../../../components/workspace/workspace-list'
-import { formatDate } from '../../../../lib/format'
+import { WorkspaceHeader, WorkspacePage } from '../../../../components/workspace/workspace-page'
+import { formatConfidence, formatDate } from '../../../../lib/format'
 import type { DealBriefDetail } from '../../../../lib/research'
 import { authenticatedFetch } from '../../../../lib/server-auth'
 
@@ -15,22 +13,41 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const brief = await authenticatedFetch<DealBriefDetail>(`/deal-briefs/${id}`).catch(() => null)
   if (!brief) notFound()
 
+  const prospect = brief.researchRun.prospect
+  const goalLabel = brief.researchRun.goal === 'meeting' ? 'Meeting brief' : 'Outreach brief'
+
   return <WorkspacePage>
-    <ButtonLink href="/dashboard/briefs" variant="secondary"><ArrowLeft size={15}/>All deal briefs</ButtonLink>
-    <WorkspaceHeader eyebrow={brief.researchRun.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'} title={brief.title} lead={<>Prepared for {brief.researchRun.prospect.name}{brief.researchRun.prospect.companyName ? ` at ${brief.researchRun.prospect.companyName}` : ''} using citable evidence.</>} action={<StatusBadge status={brief.status}/>}/>
+    <Link className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-iq-600 hover:text-brand" href="/dashboard/briefs"><ArrowLeft size={15}/>All briefs</Link>
+    <WorkspaceHeader eyebrow={`${goalLabel} · Ready`} title={<>{prospect.name}{prospect.companyName ? ` at ${prospect.companyName}` : ''}</>} lead={<>Use the recommendations first. Open sources only when you need to verify or share the evidence.</>} action={<StatusBadge status={brief.status}/>}/>
 
-    <section className="rounded-[17px] border border-iq-200 bg-white p-[22px]"><dl className="m-0 grid grid-cols-2 gap-4 min-[680px]:grid-cols-4"><Meta label="Prospect" value={brief.researchRun.prospect.name}/><Meta label="Offer" value={brief.researchRun.offer.name}/><Meta label="Evidence" value={`${brief.researchRun.evidence.length} claims`}/><Meta label="Updated" value={formatDate(brief.updatedAt)}/></dl></section>
+    <div className="flex flex-wrap gap-2 text-xs text-iq-600">
+      <MetaChip label="Offer" value={brief.researchRun.offer.name}/>
+      <MetaChip label="Cited signals" value={String(brief.researchRun.evidence.length)}/>
+      <MetaChip label="Updated" value={formatDate(brief.updatedAt)}/>
+    </div>
 
-    <WorkspaceSplit>
-      <WorkspaceSection title="Tailored brief" description="Dynamic sections rendered from the structured synthesis output."><BriefSections sections={brief.sections}/></WorkspaceSection>
-      <WorkspaceSection title="Citation set" description="Evidence used by this run.">
-        {brief.researchRun.evidence.length ? <div className="grid gap-[9px]">{brief.researchRun.evidence.map((item) => <a className="flex min-h-[82px] items-center gap-[15px] rounded-[14px] border border-iq-200 bg-white px-[17px] py-[15px] transition-[border-color,box-shadow] duration-300 ease-fluid hover:border-iq-300 hover:shadow-card motion-reduce:transition-none max-[620px]:flex-wrap max-[620px]:items-start" href={item.source.url} target="_blank" rel="noreferrer" key={item.id}><ItemIcon><FileCheck2 size={17}/></ItemIcon><ItemBody title={item.signalType} description={item.source.title}/></a>)}</div> : <EmptyState icon={<Sparkles size={20}/>} title="No citations attached" body="This draft predates evidence normalization or is still awaiting citations."/>}
-      </WorkspaceSection>
-    </WorkspaceSplit>
-    <ButtonLink href={`/dashboard/research/${brief.researchRun.id}`} variant="secondary">Open source research</ButtonLink>
+    <main className="grid gap-4">
+      <BriefSections sections={brief.sections} goal={brief.researchRun.goal}/>
+
+      <details className="group overflow-hidden rounded-[18px] border border-iq-200 bg-white" data-testid="evidence-disclosure">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 marker:hidden">
+          <span className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#eaf8f1] text-success"><ShieldCheck size={19}/></span><span><strong className="block text-sm text-iq-900">Sources & confidence</strong><small className="mt-0.5 block text-xs text-iq-500">{brief.researchRun.evidence.length} claim{brief.researchRun.evidence.length === 1 ? '' : 's'} used in this brief</small></span></span>
+          <span className="text-xs font-semibold text-brand group-open:hidden">Show evidence</span><span className="hidden text-xs font-semibold text-brand group-open:inline">Hide evidence</span>
+        </summary>
+        <div className="grid gap-2 border-t border-iq-100 p-4">
+          {brief.researchRun.evidence.length ? brief.researchRun.evidence.map((item) => <article className="rounded-[14px] border border-iq-200 bg-iq-50/50 p-4" key={item.id}>
+            <header className="mb-2 flex items-center justify-between gap-3"><span className="text-[.68rem] font-bold tracking-[.08em] text-brand uppercase">{item.signalType}</span><strong className="text-xs text-success">{formatConfidence(item.confidence)}</strong></header>
+            <p className="my-0 text-sm leading-relaxed text-iq-700">{item.claim}</p>
+            <a className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand" href={item.source.url} target="_blank" rel="noreferrer"><FileCheck2 size={14}/>{item.source.title}<ArrowUpRight size={13}/></a>
+          </article>) : <p className="m-0 p-2 text-sm text-iq-500">No citations are attached to this draft yet.</p>}
+        </div>
+      </details>
+
+      <Link className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-iq-600 hover:text-brand" href={`/dashboard/research/${brief.researchRun.id}`}>View research process<ArrowUpRight size={14}/></Link>
+    </main>
   </WorkspacePage>
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
-  return <div><dt className="text-[.66rem] tracking-wider text-iq-500 uppercase">{label}</dt><dd className="mt-1.5 mb-0 text-sm leading-normal text-iq-900">{value}</dd></div>
+function MetaChip({ label, value }: { label: string; value: string }) {
+  return <span className="rounded-full border border-iq-200 bg-white px-3 py-2"><span className="text-iq-500">{label}</span><strong className="ml-1.5 text-iq-900">{value}</strong></span>
 }

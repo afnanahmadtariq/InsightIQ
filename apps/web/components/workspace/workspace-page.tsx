@@ -1,15 +1,15 @@
 import type { ReactNode } from 'react'
 
 export function WorkspacePage({ children }: { children: ReactNode }) {
-  return <div className="grid animate-page-in gap-[30px]">{children}</div>
+  return <div className="grid animate-page-in gap-6">{children}</div>
 }
 
 export function WorkspaceHeader({ eyebrow, title, lead, action }: { eyebrow: string; title: ReactNode; lead: ReactNode; action?: ReactNode }) {
   return <header className="flex items-end justify-between gap-7 max-[620px]:flex-col max-[620px]:items-start">
     <div className="max-w-[720px]">
       <p className="mt-0 mb-2.5 text-[.69rem] font-[650] tracking-[.12em] text-brand-bright uppercase">{eyebrow}</p>
-      <h1 className="m-0 text-[clamp(2.45rem,5vw,4.35rem)] leading-[1.02] font-light tracking-[-.06em] text-iq-900 max-[620px]:text-[2.65rem]">{title}</h1>
-      <p className="mt-4 mb-0 max-w-[650px] text-[1.02rem] leading-[1.65] text-iq-600">{lead}</p>
+      <h1 className="m-0 text-[clamp(2.2rem,4vw,3.45rem)] leading-[1.04] font-light tracking-[-.055em] text-iq-900 max-[620px]:text-[2.35rem]">{title}</h1>
+      <p className="mt-3 mb-0 max-w-[650px] text-[.96rem] leading-[1.6] text-iq-600">{lead}</p>
     </div>
     {action}
   </header>

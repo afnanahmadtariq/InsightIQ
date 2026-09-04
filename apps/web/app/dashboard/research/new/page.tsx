@@ -1,9 +1,14 @@
 import { ResearchRunForm } from '../../../../components/research-run-form'
 import { WorkspaceHeader, WorkspacePage } from '../../../../components/workspace/workspace-page'
+import type { ResearchRunSummary } from '../../../../lib/research'
+import { authenticatedFetch } from '../../../../lib/server-auth'
 
-export default function Page() {
+export default async function Page() {
+  const recentRuns = await authenticatedFetch<ResearchRunSummary[]>('/research-runs').catch(() => []) ?? []
+  const latestOffer = recentRuns[0]?.offer
+
   return <WorkspacePage>
-    <WorkspaceHeader eyebrow="New research run" title="Connect the evidence to your offer." lead="Give InsightIQ trusted identifiers and enough offer context to search with purpose—without biasing what counts as evidence."/>
-    <ResearchRunForm/>
+    <WorkspaceHeader eyebrow="New conversation brief" title="Research once. Walk in prepared." lead="Tell us who you are meeting or contacting. We will find the strongest public signals and turn them into a usable plan."/>
+    <ResearchRunForm initialOffer={latestOffer}/>
   </WorkspacePage>
 }

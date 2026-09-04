@@ -1,9 +1,8 @@
 import Link from 'next/link'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Sparkles } from 'lucide-react'
 import { ButtonLink } from '../../../components/ui/button'
 import { EmptyState } from '../../../components/ui/empty-state'
 import { StatusBadge } from '../../../components/ui/status-badge'
-import { MetricCard, MetricGrid } from '../../../components/workspace/metric-card'
 import { WorkspaceHeader, WorkspacePage, WorkspaceSection } from '../../../components/workspace/workspace-page'
 import { ItemBody, ItemIcon, ItemMeta, WorkspaceList, WorkspaceListLink } from '../../../components/workspace/workspace-list'
 import { formatDate } from '../../../lib/format'
@@ -19,14 +18,14 @@ export default async function Page() {
     failed: runs.filter((run) => run.status === 'failed').length,
   }
   return <WorkspacePage>
-    <WorkspaceHeader eyebrow="Research queue" title="Your intelligence runs." lead="Move each prospect from trusted input to public sources, verified evidence, and a tailored deal brief." action={<ButtonLink href="/dashboard/research/new"><Plus size={17}/>New research run</ButtonLink>}/>
-    <MetricGrid label="Research status summary">{Object.entries(totals).map(([status, count]) => <MetricCard key={status} icon={<Search size={18}/>} value={count} label={status}/>)}</MetricGrid>
-    <WorkspaceSection title="All runs" description={`${runs.length} total across this workspace.`}>
-      {runs.length ? <WorkspaceList>{runs.map((run) => <WorkspaceListLink href={`/dashboard/research/${run.id}`} key={run.id}>
-        <ItemIcon><Search size={18}/></ItemIcon>
-        <ItemBody heading="h2" title={<>{run.prospect.name}{run.prospect.companyName ? ` · ${run.prospect.companyName}` : ''}</>} description={<>{run.offer.name} · {run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'} · {run._count?.sources ?? 0} sources</>}/>
-        <ItemMeta><StatusBadge status={run.status}/><time>{formatDate(run.requestedAt, { year: undefined })}</time></ItemMeta>
-      </WorkspaceListLink>)}</WorkspaceList> : <EmptyState icon={<Search size={20}/>} title="No research runs yet" body="Start with the prospect identifiers you trust and the offer you want to connect to their current situation." action={<Link href="/dashboard/research/new">Create your first run</Link>}/>}
+    <WorkspaceHeader eyebrow="Prospects" title="Every conversation, prepared." lead="Ready briefs open in one click. Active prospects show progress until their signals and recommendations are ready." action={<ButtonLink href="/dashboard/research/new"><Plus size={17}/>Research a prospect</ButtonLink>}/>
+    <section className="flex flex-wrap gap-2" aria-label="Prospect status summary">{Object.entries(totals).map(([status, count]) => <span className="inline-flex items-center gap-2 rounded-full border border-iq-200 bg-white px-3 py-2 text-xs text-iq-600" key={status}><strong className="text-sm text-iq-900">{count}</strong><span className="capitalize">{status}</span></span>)}</section>
+    <WorkspaceSection title="All prospects" description={`${runs.length} researched in this workspace.`}>
+      {runs.length ? <WorkspaceList>{runs.map((run) => <WorkspaceListLink href={run.brief ? `/dashboard/briefs/${run.brief.id}` : `/dashboard/research/${run.id}`} key={run.id}>
+        <ItemIcon>{run.brief ? <Sparkles size={18}/> : <Search size={18}/>}</ItemIcon>
+        <ItemBody heading="h2" title={<>{run.prospect.name}{run.prospect.companyName ? ` · ${run.prospect.companyName}` : ''}</>} description={<>{run.goal === 'meeting' ? 'Meeting brief' : 'Outreach draft'} · {run.offer.name} · {run._count?.evidence ?? 0} cited signals</>}/>
+        <ItemMeta><StatusBadge status={run.brief ? 'ready' : run.status}/><time>{run.brief ? 'Open brief' : formatDate(run.requestedAt, { year: undefined })}</time></ItemMeta>
+      </WorkspaceListLink>)}</WorkspaceList> : <EmptyState icon={<Search size={20}/>} title="No research runs yet" body="Start with the prospect identifiers you trust and the offer you want to connect to their current situation." action={<Link href="/dashboard/research/new">Create your first run</Link>}/>} 
     </WorkspaceSection>
   </WorkspacePage>
 }

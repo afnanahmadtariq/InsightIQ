@@ -123,8 +123,23 @@ export class E2eSeedService {
           title: 'Deal brief · Tim Cook',
           status: 'ready',
           sections: {
-            summary: 'Tim Cook at Apple: cited leadership signal for meeting prep.',
-            talking_points: [evidence.claim],
+            summary: 'Tim Cook leads Apple as chief executive. Use that verified leadership context to test which strategic operating priorities matter most before positioning InsightIQ.',
+            key_signals: [{ evidence_id: evidence.id, claim: evidence.claim, source_url: SOURCE_URL, signal_type: 'leadership' }],
+            personalized_opener: 'Tim, I saw the latest leadership context around Apple. Which operating priority is getting the most attention from your team right now?',
+            talking_points: [
+              'Lead with the verified leadership signal instead of a generic company compliment.',
+              'Connect the conversation to evidence-backed preparation only after confirming the priority.',
+            ],
+            questions_to_ask: [
+              'Which operating priority is most important for Apple this quarter?',
+              'Where does your team lose the most time preparing for high-value conversations?',
+            ],
+            objection_handling: [
+              'If the current process works: ask where research quality or consistency still varies across the team.',
+              'If timing is tight: offer a 15-minute review tied to one live account.',
+            ],
+            next_steps: ['Choose one active account and compare the current preparation workflow with an evidence-backed brief.'],
+            gaps: ['Only one verified public signal is included in this seeded example. Validate priorities in the conversation.'],
           },
         },
       })

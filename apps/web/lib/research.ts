@@ -81,7 +81,7 @@ export interface DealBriefDetail extends Omit<DealBriefSummary, 'researchRun'> {
   sections: unknown
   researchRun: {
     id: string
-    goal: string
+    goal: 'outreach' | 'meeting'
     prospect: ResearchRunSummary['prospect']
     offer: ResearchRunSummary['offer']
     evidence: Array<{

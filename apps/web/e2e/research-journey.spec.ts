@@ -44,9 +44,10 @@ test('seeded auth to cited brief journey', async ({ page, request }) => {
 
   await page.goto(`/dashboard/research/${seed.runId}`)
   await expect(page.getByRole('heading', { name: seed.prospectName, exact: true })).toBeVisible()
-  await expect(page.getByText('Research complete').or(page.getByText('Deal brief ready'))).toBeVisible()
+  await expect(page.getByText('Your conversation brief is ready')).toBeVisible()
 
   await page.goto(`/dashboard/briefs/${seed.briefId}`)
+  await page.getByText('Sources & confidence').click()
   const citation = page.locator(`a[href="${seed.citationUrl}"]`).first()
   await expect(citation).toBeVisible()
   await expect(citation).toHaveAttribute('target', '_blank')

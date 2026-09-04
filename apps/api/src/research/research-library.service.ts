@@ -127,9 +127,9 @@ export class ResearchLibraryService {
       stages: [
         { id: 'intake', label: 'Prospect and offer intake', status: 'ready' },
         { id: 'source-discovery', label: 'Public source discovery', status: 'ready' },
-        { id: 'evidence-normalization', label: 'Evidence normalization', status: 'next' },
-        { id: 'brief-synthesis', label: 'Deal brief synthesis', status: 'planned' },
-        { id: 'notification-delivery', label: 'Completion notifications', status: 'planned' },
+        { id: 'evidence-normalization', label: 'Evidence normalization', status: 'ready' },
+        { id: 'brief-synthesis', label: 'Conversation brief synthesis', status: 'ready' },
+        { id: 'notification-delivery', label: 'Completion notifications', status: 'ready' },
       ],
     }
   }
