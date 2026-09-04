@@ -25,31 +25,32 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!run) notFound()
   const discoveryComplete = run.sources.length > 0
   const evidenceComplete = run.evidence.length > 0
+  const showProgress = run.status !== 'completed' || !run.brief
 
   return <WorkspacePage>
     <ResearchRunPoller status={run.status} hasBrief={Boolean(run.brief)}/>
-    <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Research queue</Link>
-    <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting preparation' : 'Personalized outreach'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} connected to <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
+    <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Prospects</Link>
+    <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting brief' : 'Outreach brief'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} · Positioning <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
 
-    <section className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 sm:grid-cols-2 lg:grid-cols-4">
+    {showProgress && <section className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 sm:grid-cols-2 lg:grid-cols-4">
       <RunMetric label="Created" value={formatDate(run.requestedAt, { year: undefined })}/>
       <RunMetric label="Public sources" value={run.sources.length}/>
       <RunMetric label="Evidence claims" value={run.evidence.length}/>
       <RunMetric label="Brief" value={run.brief ? run.brief.status : 'Pending'}/>
-    </section>
+    </section>}
 
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[950px]:grid-cols-4" aria-label="Research workflow">
-      <WorkflowStep number="01" title="Intake" description="Identifiers and offer preserved." complete icon={<Check size={16}/>}/>
-      <WorkflowStep number="02" title="Discovery" description={discoveryComplete ? `${run.sources.length} sources collected.` : 'Ready to search public sources.'} complete={discoveryComplete} icon={discoveryComplete ? <Check size={16}/> : <Search size={16}/>}/>
-      <WorkflowStep number="03" title="Evidence" description={evidenceComplete ? `${run.evidence.length} claims normalized.` : discoveryComplete ? 'Worker is extracting citable claims.' : 'Runs after source discovery.'} complete={evidenceComplete} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
-      <WorkflowStep number="04" title="Brief" description={run.brief ? 'Tailored output is ready.' : evidenceComplete ? 'Worker is synthesizing your deal brief.' : 'Synthesis follows verified evidence.'} complete={Boolean(run.brief)} icon={run.brief ? <Check size={16}/> : <Sparkles size={16}/>}/>
-    </section>
+    {showProgress && <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[950px]:grid-cols-4" aria-label="Research workflow">
+      <WorkflowStep number="01" title="Input" description="Prospect and offer saved." complete icon={<Check size={16}/>}/>
+      <WorkflowStep number="02" title="Web research" description={discoveryComplete ? `${run.sources.length} sources found.` : 'Searching trusted public sources.'} complete={discoveryComplete} icon={discoveryComplete ? <Check size={16}/> : <Search size={16}/>}/>
+      <WorkflowStep number="03" title="Signal check" description={evidenceComplete ? `${run.evidence.length} claims verified.` : discoveryComplete ? 'Checking relevance and citations.' : 'Starts after web research.'} complete={evidenceComplete} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
+      <WorkflowStep number="04" title="Conversation brief" description={run.brief ? 'Ready to use.' : evidenceComplete ? 'Turning signals into recommendations.' : 'Built from verified signals.'} complete={Boolean(run.brief)} icon={run.brief ? <Check size={16}/> : <Sparkles size={16}/>}/>
+    </section>}
 
     {run.status === 'queued' && <ResearchCallout icon={<Search size={19}/>} title="Ready for public-source discovery" body="Launch the current Tavily discovery stage. It searches profile, company, and recent-signal queries in parallel while keeping every returned URL traceable."><ResearchRunActions run={run}/></ResearchCallout>}
     {run.status === 'running' && !discoveryComplete && <ResearchCallout icon={<CircleDashed size={19}/>} title="Discovery is in progress" body="The request has been claimed. Refresh to inspect sources as soon as collection finishes."><ResearchRunActions run={run}/></ResearchCallout>}
     {run.status === 'running' && discoveryComplete && !run.brief && <ResearchCallout tone="success" icon={<CircleDashed size={19}/>} title="Worker is synthesizing your brief" body="Sources are collected. The Python worker is extracting citable claims and generating your deal brief — this page refreshes automatically."><ResearchRunActions run={run}/></ResearchCallout>}
     {run.status === 'running' && discoveryComplete && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Deal brief ready" body="Your cited brief is ready to review."><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
-    {run.status === 'completed' && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Research complete" body={`${run.evidence.length} verified claim(s) and a tailored deal brief are ready.`}><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
+    {run.status === 'completed' && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Your conversation brief is ready" body={`${run.evidence.length} cited signal${run.evidence.length === 1 ? '' : 's'} shaped the recommended opener, questions, and next step.`}><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Use this brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
     {run.status === 'failed' && <ResearchCallout tone="error" icon={<CircleDashed size={19}/>} title="Discovery needs attention" body={run.errorMessage || 'The provider could not complete this run. Retry after checking the project integration.'}><ResearchRunActions run={run}/></ResearchCallout>}
 
     <WorkspaceSplit>
@@ -72,7 +73,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <ContextRow label="Prospect" value={run.prospect.name}/><ContextRow label="Company" value={run.prospect.companyName || 'Not supplied'}/><ContextRow label="Offer" value={run.offer.name}/><ContextRow label="Target persona" value={run.offer.targetPersona || 'Not supplied'}/><ContextRow label="Goal" value={run.goal === 'meeting' ? 'Prepare for a meeting' : 'Create personalized outreach'}/>
         </dl>
         <div><small className="text-[.66rem] tracking-[.07em] text-iq-500 uppercase">Value proposition</small><p className="mt-[7px] mb-[18px] text-[.78rem] leading-[1.55] text-iq-600">{run.offer.valueProposition}</p></div>
-        {run.brief && <ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink>}
+        {run.brief && run.status !== 'completed' && <ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open conversation brief<ArrowUpRight size={16}/></ButtonLink>}
       </aside>
     </WorkspaceSplit>
   </WorkspacePage>

@@ -239,9 +239,13 @@ def polish_brief(context: RunContext, sections: BriefSections, evidence: list[di
         indent=2,
     )
     system = (
-        'You write concise, credible B2B deal brief copy. Return JSON with summary, talking_points, '
-        'questions_to_ask, personalized_opener, objection_handling, next_steps, outreach_draft. '
-        'Use ONLY provided evidence claims; do not invent facts. Keep tone specific and executive-ready.'
+        'You write a concise B2B conversation brief for an agency SDR or SaaS account executive. '
+        'Return JSON with summary, talking_points, questions_to_ask, personalized_opener, '
+        'objection_handling, next_steps, outreach_draft. The summary must answer why this conversation '
+        'is timely and frame any inferred priority as a hypothesis to validate. Talking points must connect '
+        'verified signals to the seller offer without claiming an unverified pain. Questions should be short '
+        'and diagnostic. Objection handling should use practical if/then responses. Next steps must be concrete. '
+        'If the goal is outreach, keep the email under 120 words. Use ONLY provided evidence claims; never invent facts.'
     )
     try:
         payload = _chat_json(system, prompt)

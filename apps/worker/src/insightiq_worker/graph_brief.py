@@ -87,29 +87,36 @@ def assemble_sections(state: BriefState) -> BriefState:
         for item in ranked
     ]
     lead = str(ranked[0]['claim'])
+    offer_outcome = context.value_proposition[:180].strip().rstrip('.')
+    use_case = 'meeting' if context.goal == 'meeting' else 'outreach'
     summary = (
-        f'{context.prospect_name} at {company}: {lead} '
-        f'InsightIQ linked {len(ranked)} verified public signal(s) to {context.offer_name} for meeting prep.'
+        f'{lead} This is the strongest verified reason to frame your {use_case} around {context.offer_name}. '
+        f'Test whether {offer_outcome.lower()} is a current priority before pitching.'
     )
     talking_points = [
-        f"{row['claim']} — {row['source_title']}"
+        f"Lead with the verified signal: {row['claim']}"
         for row in ranked[:3]
     ]
     questions = _signal_questions(context, ranked)
     outreach = None
-    personalized = f'{first}, I saw that {lead.split(".")[0].lower()} — worth a quick conversation?'
+    personalized = f'{first}, I saw that {lead.split(".")[0].lower()}. How is that shaping priorities at {company} right now?'
     objections = [
-        'If timing is tight: we can start with a 15-minute walkthrough tied to one verified signal, not a generic pitch.',
-        'If you already have a research process: InsightIQ shows its work with citations, so your team can verify every claim.',
+        f'If timing is not a priority: ask what event would make the outcome behind {context.offer_name} urgent.',
+        f'If an existing approach is in place: ask where the current workflow still creates friction before positioning {context.offer_name}.',
     ]
-    next_steps = [
-        f'Confirm which of the {len(ranked)} cited signals matter most for {company} this quarter.',
-        f'Map {context.offer_name} to one live workflow (outreach or meeting prep) in the next 14 days.',
-    ]
+    next_steps = (
+        [
+            f'Confirm which cited signal maps to an active priority at {company}.',
+            f'Agree on one workflow where {context.offer_name} can prove value and identify the decision owner.',
+        ]
+        if context.goal == 'meeting'
+        else [f'Ask for a 15-minute conversation to validate whether the cited signal is creating a priority at {company}.']
+    )
     if context.goal == 'outreach':
         outreach = (
-            f'Hi {first}, I was reading about {company} and noticed: "{lead}" '
-            f'We help teams like yours with {context.offer_name.lower()} — open to a short conversation?'
+            f'Hi {first},\n\nI noticed {lead.rstrip(".").lower()}. '
+            f'I am curious whether that is creating pressure around {offer_outcome.lower()}. '
+            f'That is where {context.offer_name} may help.\n\nOpen to comparing notes for 15 minutes?'
         )
 
     gaps: list[str] = []

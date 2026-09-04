@@ -5,11 +5,12 @@ import { Bell, Building2, Check, ChevronLeft, ChevronRight, Search } from 'lucid
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { AccountContext } from '../lib/account-context'
+import { apiRequest } from '../lib/api-client'
 import type { InsightNotification } from '../lib/research'
 import { DashboardNav } from './dashboard-nav'
 import { SignOutButton } from './sign-out-button'
 import { Brand } from './ui/brand'
-import { Button } from './ui/button'
+import { Button, ButtonLink } from './ui/button'
 
 function NotificationEntry({ item, onSelect }: { item: InsightNotification; onSelect: () => void }) {
   const content = <>
@@ -33,8 +34,9 @@ export function DashboardShell({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notificationItems, setNotificationItems] = useState(notifications)
   const initials = context.user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
-  const unreadNotifications = notifications.filter((item) => !item.readAt).length
+  const unreadNotifications = notificationItems.filter((item) => !item.readAt).length
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -47,6 +49,16 @@ export function DashboardShell({
       const next = !current
       window.localStorage.setItem('insightiq-sidebar-collapsed', String(next))
       return next
+    })
+  }
+
+  function selectNotification(item: InsightNotification) {
+    setNotificationsOpen(false)
+    if (item.readAt) return
+    const readAt = new Date().toISOString()
+    setNotificationItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, readAt } : entry))
+    void apiRequest(`/notifications/${item.id}/read`, { method: 'POST', keepalive: true }).catch(() => {
+      setNotificationItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, readAt: null } : entry))
     })
   }
 
@@ -76,9 +88,10 @@ export function DashboardShell({
     </aside>
 
     <div className="min-w-0">
-      <header className="flex h-[76px] items-center justify-between gap-5 border-b border-iq-200 bg-iq-50/72 px-[34px] backdrop-blur-xl max-[900px]:h-16 max-[900px]:px-5">
-        <div className="grid gap-0.5 max-[560px]:max-w-[170px]"><small className="text-[.68rem] tracking-[.07em] text-iq-500 uppercase">Active workspace</small><strong className="truncate text-[.9rem] text-iq-900">{context.activeWorkspace.name}</strong></div>
+      <header className="flex h-[68px] items-center justify-between gap-5 border-b border-iq-200 bg-iq-50/72 px-[34px] backdrop-blur-xl max-[900px]:h-16 max-[900px]:px-5">
+        <div className="grid gap-0.5 max-[560px]:max-w-[150px]"><small className="text-[.66rem] tracking-[.07em] text-iq-500 uppercase">Sales workspace</small><strong className="truncate text-[.86rem] text-iq-900">{context.activeWorkspace.name}</strong></div>
         <div className="flex items-center gap-[9px]">
+          <ButtonLink href="/dashboard/research/new" size="xs" className="max-[520px]:px-3"><Search size={15}/><span className="max-[520px]:hidden">Research prospect</span><span className="hidden max-[520px]:inline">New brief</span></ButtonLink>
           <Popover.Root open={notificationsOpen} onOpenChange={setNotificationsOpen}>
             <Popover.Trigger asChild>
               <Button type="button" variant="secondary" size="icon" className="relative text-iq-600 hover:text-brand data-[state=open]:border-iq-300 data-[state=open]:bg-iq-50 data-[state=open]:text-brand" aria-label={`${unreadNotifications} unread notifications`}>
@@ -88,15 +101,15 @@ export function DashboardShell({
             <Popover.Portal>
               <Popover.Content className="z-100 w-[min(370px,calc(100vw_-_40px))] overflow-hidden rounded-[15px] border border-iq-200 bg-white data-[state=open]:animate-notification-in" side="bottom" align="end" sideOffset={12} collisionPadding={20} aria-label="Notifications">
                 <header className="flex items-center justify-between border-b border-iq-200 px-4 py-[15px]"><div className="grid gap-[3px]"><strong className="text-[.88rem]">Notifications</strong><small className="text-[.68rem] tracking-normal text-iq-500 normal-case">{unreadNotifications ? `${unreadNotifications} unread` : 'You’re all caught up'}</small></div><Button type="button" variant="ghost" size="icon-sm" className="size-7! text-xl leading-none text-iq-500" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications">×</Button></header>
-                {notifications.length
-                  ? <div className="grid max-h-[360px] overflow-auto">{notifications.slice(0, 5).map((item) => <NotificationEntry key={item.id} item={item} onSelect={() => setNotificationsOpen(false)}/>)}</div>
+                {notificationItems.length
+                  ? <div className="grid max-h-[360px] overflow-auto">{notificationItems.slice(0, 5).map((item) => <NotificationEntry key={item.id} item={item} onSelect={() => selectNotification(item)}/>)}</div>
                   : <div className="grid justify-items-start gap-2.5 px-4 py-[22px] text-iq-500"><Bell className="text-brand" size={19}/><p className="m-0 max-w-[260px] text-[.78rem] leading-normal">No notifications yet. When research moves, you’ll see it here.</p></div>}
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1180px] px-[38px] pt-12 pb-20 max-[900px]:px-5 max-[900px]:pt-[38px] max-[900px]:pb-16">{children}</main>
+      <main className="mx-auto w-full max-w-[1180px] px-[38px] pt-9 pb-20 max-[900px]:px-5 max-[900px]:pt-8 max-[900px]:pb-16">{children}</main>
     </div>
   </div>
 }

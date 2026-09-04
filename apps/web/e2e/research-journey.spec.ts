@@ -47,6 +47,7 @@ test('seeded auth to cited brief journey', async ({ page, request }) => {
   await expect(page.getByText('Research complete').or(page.getByText('Deal brief ready'))).toBeVisible()
 
   await page.goto(`/dashboard/briefs/${seed.briefId}`)
+  await page.getByText('Sources & confidence').click()
   const citation = page.locator(`a[href="${seed.citationUrl}"]`).first()
   await expect(citation).toBeVisible()
   await expect(citation).toHaveAttribute('target', '_blank')

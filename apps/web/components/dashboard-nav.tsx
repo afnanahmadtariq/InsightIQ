@@ -1,15 +1,13 @@
 'use client'
 
-import { FileCheck2, LayoutDashboard, Plug, Search, Sparkles } from 'lucide-react'
+import { House, Search, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const navigation = [
-  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/research', label: 'Research', icon: Search },
-  { href: '/dashboard/evidence', label: 'Evidence', icon: FileCheck2 },
-  { href: '/dashboard/briefs', label: 'Deal briefs', icon: Sparkles },
-  { href: '/dashboard/integrations', label: 'Integrations', icon: Plug },
+  { href: '/dashboard', label: 'Home', icon: House, exact: true },
+  { href: '/dashboard/research', label: 'Prospects', icon: Search },
+  { href: '/dashboard/briefs', label: 'Briefs', icon: Sparkles },
 ]
 
 export function DashboardNav({ collapsed = false }: { collapsed?: boolean }) {
