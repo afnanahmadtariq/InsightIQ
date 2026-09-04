@@ -255,9 +255,11 @@ class EvidenceStageAllClaimsDroppedTest(unittest.TestCase):
 
         with patch.dict(os.environ, {'DASHSCOPE_API_KEY': 'test-key'}):
             with patch('psycopg.connect', return_value=connection):
-                result = worker.poll_once()
+                with self.assertLogs('insightiq.worker', level='ERROR') as logs:
+                    result = worker.poll_once()
 
         self.assertTrue(result)
+        self.assertIn('no evidence claims survived extraction', '\n'.join(logs.output))
         self.assertIn(FAIL_SQL, connection.executed_sql())
         self.assertNotIn(BACKOFF_SQL, connection.executed_sql())
         self.assertNotIn(INSERT_EVIDENCE_SQL, connection.executed_sql())
@@ -302,9 +304,11 @@ class EvidenceStageInsertFailureRollsBackTest(unittest.TestCase):
 
         with patch.dict(os.environ, {'DASHSCOPE_API_KEY': 'test-key'}):
             with patch('psycopg.connect', return_value=connection):
-                result = worker.poll_once()
+                with self.assertLogs('insightiq.worker', level='ERROR') as logs:
+                    result = worker.poll_once()
 
         self.assertTrue(result)
+        self.assertIn('constraint violation', '\n'.join(logs.output))
         rollback_indices = [index for index, action in enumerate(connection.actions) if action[0] == 'rollback']
         fail_indices = [
             index
@@ -333,9 +337,11 @@ class EvidenceStageBlankExcerptTest(unittest.TestCase):
 
         with patch.dict(os.environ, {'DASHSCOPE_API_KEY': 'test-key'}):
             with patch('psycopg.connect', return_value=connection):
-                result = worker.poll_once()
+                with self.assertLogs('insightiq.worker', level='ERROR') as logs:
+                    result = worker.poll_once()
 
         self.assertTrue(result)
+        self.assertIn('no evidence claims survived extraction', '\n'.join(logs.output))
         self.assertEqual(len(fake_client.chat.completions.calls), 0)
         self.assertIn(FAIL_SQL, connection.executed_sql())
         self.assertNotIn(INSERT_EVIDENCE_SQL, connection.executed_sql())
@@ -417,9 +423,11 @@ class EvidenceStageDegradeOneSourceTest(unittest.TestCase):
 
         with patch.dict(os.environ, {'DASHSCOPE_API_KEY': 'test-key'}):
             with patch('psycopg.connect', return_value=connection):
-                result = worker.poll_once()
+                with self.assertLogs('insightiq.worker', level='ERROR') as logs:
+                    result = worker.poll_once()
 
         self.assertTrue(result)
+        self.assertIn('network down', '\n'.join(logs.output))
         self.assertIn(FAIL_SQL, connection.executed_sql())
         self.assertNotIn(INSERT_EVIDENCE_SQL, connection.executed_sql())
 
