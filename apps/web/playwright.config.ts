@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 const webPort = Number(process.env.E2E_WEB_PORT || 3000)
 const apiPort = Number(process.env.E2E_API_PORT || 3001)
 const useRealStack = process.env.E2E_USE_REAL_STACK === 'true'
+const hostEnv = { HOSTNAME: '127.0.0.1' }
 
 export default defineConfig({
   testDir: './e2e',
@@ -25,11 +26,15 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        ...hostEnv,
         NODE_ENV: 'development',
         PORT: String(apiPort),
         E2E_ENABLED: 'true',
         E2E_SEED_SECRET: process.env.E2E_SEED_SECRET || 'e2e-local-secret-ok',
         DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/insightiq?schema=public',
+        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET || 'local-better-auth-secret-minimum-32-chars',
+        BETTER_AUTH_URL: `http://127.0.0.1:${apiPort}`,
+        WEB_ORIGIN: `http://127.0.0.1:${webPort}`,
       },
     },
     {
@@ -38,6 +43,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        ...hostEnv,
         NEXT_PUBLIC_API_URL: `http://127.0.0.1:${apiPort}`,
         PORT: String(webPort),
       },
@@ -48,7 +54,7 @@ export default defineConfig({
       url: `http://127.0.0.1:${apiPort}/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { E2E_API_PORT: String(apiPort) },
+      env: { ...hostEnv, E2E_API_PORT: String(apiPort) },
     },
     {
       command: `npm run dev -- --port ${webPort}`,
@@ -56,6 +62,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        ...hostEnv,
         NEXT_PUBLIC_API_URL: `http://127.0.0.1:${apiPort}`,
         PORT: String(webPort),
       },

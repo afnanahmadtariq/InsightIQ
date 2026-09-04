@@ -48,3 +48,12 @@ test('API deployment passes project-scoped Tavily configuration to the container
   assert.match(compose, /TAVILY_PROJECT_ID/)
   assert.match(compose, /TAVILY_SEARCH_DEPTH/)
 })
+
+test('production deployment builds, pulls, and starts the worker service', () => {
+  assert.match(compose, /WORKER_IMAGE/)
+  assert.match(apiWorkflow, /WORKER_IMAGE_NAME/)
+  assert.match(apiWorkflow, /Build and push worker image/)
+  assert.match(apiWorkflow, /docker compose pull api worker/)
+  assert.match(apiWorkflow, /docker compose up -d --no-build --no-deps --wait --wait-timeout 60 api worker/)
+  assert.match(apiWorkflow, /docker compose ps -q --status running worker/)
+})

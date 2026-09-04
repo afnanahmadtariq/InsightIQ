@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 from html import unescape
+from typing import Optional
 from urllib.parse import quote
 
 import httpx
@@ -41,7 +42,7 @@ def fetch_with_httpx(url: str, timeout: float = 20.0) -> str:
         return response.text[:MAX_TEXT]
 
 
-async def fetch_with_crawl4ai(url: str) -> str | None:
+async def fetch_with_crawl4ai(url: str) -> Optional[str]:
     try:
         from crawl4ai import AsyncWebCrawler
     except ImportError:
@@ -122,7 +123,7 @@ def _score_wikipedia_hit(hit: dict, hints: tuple[str, ...], query: str) -> int:
     return score
 
 
-def _wiki_summary_by_title(client: httpx.Client, title: str) -> tuple[str, str | None]:
+def _wiki_summary_by_title(client: httpx.Client, title: str) -> tuple[str, Optional[str]]:
     slug = quote(title.replace(' ', '_'), safe='/_')
     response = client.get(f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}')
     if response.status_code == 404:
@@ -134,7 +135,7 @@ def _wiki_summary_by_title(client: httpx.Client, title: str) -> tuple[str, str |
     return extract[:MAX_TEXT], page_url
 
 
-def wikipedia_resolve(query: str, *, hints: tuple[str, ...] = ()) -> tuple[str, str | None, str]:
+def wikipedia_resolve(query: str, *, hints: tuple[str, ...] = ()) -> tuple[str, Optional[str], str]:
     cleaned = query.strip()
     if not cleaned:
         return '', None, ''
@@ -147,7 +148,7 @@ def wikipedia_resolve(query: str, *, hints: tuple[str, ...] = ()) -> tuple[str, 
         if direct_extract:
             return direct_extract, direct_url, cleaned
 
-        best_hit: dict | None = None
+        best_hit: Optional[dict] = None
         best_score = -999
         for term in searches:
             for hit in _wiki_search(client, term):
@@ -163,7 +164,7 @@ def wikipedia_resolve(query: str, *, hints: tuple[str, ...] = ()) -> tuple[str, 
     return '', None, ''
 
 
-def wikipedia_summary(title: str) -> tuple[str, str | None]:
+def wikipedia_summary(title: str) -> tuple[str, Optional[str]]:
     extract, page_url, _ = wikipedia_resolve(title)
     return extract, page_url
 

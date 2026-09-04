@@ -47,6 +47,7 @@ services:
       start_period: 10s
 
   worker:
+    image: ${WORKER_IMAGE:-insightiq-worker:local}
     build: ./apps/worker
     restart: unless-stopped
     environment:
