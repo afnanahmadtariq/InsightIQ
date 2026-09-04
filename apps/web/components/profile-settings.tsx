@@ -45,9 +45,15 @@ export function ProfileSettings({ user, workspace }: { user: AccountContext['use
   const [pending, setPending] = useState<PendingAction>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const initials = user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
-  const secret = setup ? new URL(setup.totpURI).searchParams.get('secret') || '' : ''
-
+const initials = user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+const secret = (() => {
+  if (!setup) return ''
+  try {
+    return new URL(setup.totpURI).searchParams.get('secret') || ''
+  } catch {
+    return ''
+  }
+})()
   function begin(action: Exclude<PendingAction, null>) {
     setPending(action)
     setError('')
