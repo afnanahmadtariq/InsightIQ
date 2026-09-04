@@ -2,7 +2,6 @@ name: Deploy production API
 
 permissions:
   contents: read
-  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -54,16 +53,16 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: "24.14.0"
           cache: npm
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.12"
 
@@ -105,12 +104,15 @@ jobs:
     needs: verify
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     outputs:
       api_image: ${{ steps.api-image.outputs.name }}
       worker_image: ${{ steps.worker-image.outputs.name }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       - name: Set API image name
         id: api-image
@@ -121,34 +123,34 @@ jobs:
         run: echo "name=${{ env.REGISTRY }}/${{ env.WORKER_IMAGE_NAME }}:sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.1.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push API image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.3.0
         with:
           context: .
           file: apps/api/Dockerfile
           push: true
           tags: ${{ steps.api-image.outputs.name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
 
       - name: Build and push worker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.3.0
         with:
           context: apps/worker
           file: apps/worker/Dockerfile
           push: true
           tags: ${{ steps.worker-image.outputs.name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,scope=worker,mode=max
 
   deploy:
     needs: [verify, build-image]
@@ -156,7 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout deployment configuration
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       - name: Upload deployment configuration
         uses: appleboy/scp-action@v1.0.0
@@ -169,7 +171,7 @@ jobs:
           target: insightiq
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         env:
           PRODUCTION_ENV: ${{ secrets.PRODUCTION_ENV_FILE }}
           API_IMAGE: ${{ needs.build-image.outputs.api_image }}
@@ -181,10 +183,10 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          script_stop: true
           envs: PRODUCTION_ENV,API_IMAGE,WORKER_IMAGE,GHCR_USERNAME,GHCR_READ_TOKEN
           script: |
             set -e
+            umask 077
 
             cd "$HOME/insightiq"
             for required in POSTGRES_PASSWORD BETTER_AUTH_SECRET RESEND_API_KEY TAVILY_API_KEY DASHSCOPE_API_KEY; do
