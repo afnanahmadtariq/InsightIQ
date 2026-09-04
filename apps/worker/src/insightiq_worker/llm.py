@@ -14,7 +14,7 @@ from insightiq_worker.models import BriefSections, EvidenceDraft, RunContext, Si
 log = logging.getLogger('insightiq.worker.llm')
 
 DEFAULT_OPENAI_MODEL = 'gpt-4o-mini'
-DEFAULT_DASHSCOPE_MODEL = 'qwen3-max'
+DEFAULT_DASHSCOPE_MODEL = 'qwen3.8-max'
 DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 
 SIGNAL_TYPES = (
@@ -99,6 +99,7 @@ def _chat_json(system: str, user: str) -> dict:
         model=_model(),
         temperature=0.2,
         response_format={'type': 'json_object'},
+        extra_body={'enable_thinking': False},
         messages=[
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': user},
@@ -226,13 +227,20 @@ def polish_brief(context: RunContext, sections: BriefSections, evidence: list[di
     if not llm_enabled() or not evidence:
         return sections
 
+    raw_outcome = ' '.join(context.value_proposition.split()).strip()
+    seller_intent = ('i want to sell', 'i need to get', 'buy my', 'sell my', 'get him to', 'get her to', 'get them to')
+    buyer_outcome = (
+        f'the workflow {context.offer_name} is designed to improve'
+        if len(raw_outcome) < 25 or any(phrase in raw_outcome.lower() for phrase in seller_intent)
+        else raw_outcome
+    )
     prompt = json.dumps(
         {
             'prospect': context.prospect_name,
             'company': context.company_name,
             'offer': context.offer_name,
             'goal': context.goal,
-            'value_proposition': context.value_proposition,
+            'buyer_outcome': buyer_outcome,
             'evidence': evidence[:6],
             'draft': sections.model_dump(),
         },
@@ -246,6 +254,7 @@ def polish_brief(context: RunContext, sections: BriefSections, evidence: list[di
         'verified signals to the seller offer without claiming an unverified pain. Questions should be short '
         'and diagnostic. Objection handling should use practical if/then responses. Next steps must be concrete. '
         'If the goal is outreach, keep the email under 120 words. Use ONLY provided evidence claims; never invent facts.'
+        ' Never repeat seller-centric intent such as wanting someone to buy; write in terms of the buyer outcome provided.'
     )
     try:
         payload = _chat_json(system, prompt)

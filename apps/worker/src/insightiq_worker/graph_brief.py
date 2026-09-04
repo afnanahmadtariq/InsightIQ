@@ -29,6 +29,15 @@ class BriefState(TypedDict):
 
 THIN_EVIDENCE_CLAIM_LIMIT = 2
 THIN_EVIDENCE_CONFIDENCE = 0.65
+SELLER_INTENT = ('i want to sell', 'i need to get', 'buy my', 'sell my', 'get him to', 'get her to', 'get them to')
+
+
+def _buyer_outcome(context: RunContext) -> tuple[str, bool]:
+    value = ' '.join(context.value_proposition.split()).strip().rstrip('.')
+    vague = len(value) < 25 or any(phrase in value.lower() for phrase in SELLER_INTENT)
+    if vague:
+        return f'the workflow {context.offer_name} is designed to improve', True
+    return value, False
 
 
 def _signal_questions(context: RunContext, evidence: list[dict]) -> list[str]:
@@ -47,7 +56,7 @@ def _signal_questions(context: RunContext, evidence: list[dict]) -> list[str]:
         questions.append(f'How is {company} translating recent funding into execution priorities this quarter?')
 
     questions.append(f'Where would {context.offer_name} need to prove value fastest to be worth your time?')
-    questions.append(f'What would make {context.value_proposition[:100].rstrip(".")} relevant in your next planning cycle?')
+    questions.append(f'What current workflow would {context.offer_name} need to improve to earn a deeper evaluation?')
     return questions[:4]
 
 
@@ -87,7 +96,7 @@ def assemble_sections(state: BriefState) -> BriefState:
         for item in ranked
     ]
     lead = str(ranked[0]['claim'])
-    offer_outcome = context.value_proposition[:180].strip().rstrip('.')
+    offer_outcome, vague_offer_context = _buyer_outcome(context)
     use_case = 'meeting' if context.goal == 'meeting' else 'outreach'
     summary = (
         f'{lead} This is the strongest verified reason to frame your {use_case} around {context.offer_name}. '
@@ -120,6 +129,8 @@ def assemble_sections(state: BriefState) -> BriefState:
         )
 
     gaps: list[str] = []
+    if vague_offer_context:
+        gaps.append('Offer context lacks a measurable buyer outcome — add the problem solved and expected result for sharper messaging.')
     if len(ranked) <= THIN_EVIDENCE_CLAIM_LIMIT:
         gaps.append(
             f'Only {len(ranked)} verified public signal(s) cleared the relevance gate — treat conclusions as preliminary.'

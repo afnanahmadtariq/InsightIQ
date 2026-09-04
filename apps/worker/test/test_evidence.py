@@ -16,8 +16,10 @@ from insightiq_worker.evidence import (
     _prefer_observed_at,
     assemble_evidence_rows,
     build_extraction_prompt,
+    filter_claims_for_source,
     reconcile_claims,
 )
+from insightiq_worker.models import RunContext
 
 
 def _claim(claim: str, signal_type: str = 'hiring', confidence: float = 0.5, observed_at=None) -> ExtractedClaim:
@@ -114,6 +116,55 @@ class BuildExtractionPromptTest(unittest.TestCase):
             self.assertIn(signal_type, system_prompt)
         self.assertIn(source['excerpt'], user_prompt)
         self.assertIn(source['title'], user_prompt)
+
+    def test_context_prompt_names_the_target_and_rejects_social_fragments(self):
+        context = RunContext(
+            run_id='run', organization_id='org', goal='meeting', created_by_id='user',
+            prospect_name='Taha Ashfaq', company_name='Adasight', offer_name='Platform',
+            value_proposition='Improve design workflows for product teams.',
+        )
+        system_prompt, _ = build_extraction_prompt(
+            {'url': 'https://example.test', 'title': 'Profile', 'publisher': 'Example', 'excerpt': 'Text'},
+            context,
+        )
+        self.assertIn('Taha Ashfaq', system_prompt)
+        self.assertIn('Adasight', system_prompt)
+        self.assertIn('social activity labels', system_prompt)
+
+
+class FilterClaimsForSourceTest(unittest.TestCase):
+    def setUp(self):
+        self.context = RunContext(
+            run_id='run', organization_id='org', goal='meeting', created_by_id='user',
+            prospect_name='Taha Ashfaq', company_name='Adasight', offer_name='Platform',
+            value_proposition='Improve design workflows for product teams.',
+        )
+
+    def test_rejects_activity_fragment_even_when_model_is_highly_confident(self):
+        source = {
+            'title': 'Taha Ashfaq profile',
+            'excerpt': 'For a while.… Liked by Taha Ashfaq View Post Activity Image',
+        }
+        claims = [_claim('For a while.… Liked by Taha Ashfaq View Post Activity Image', confidence=0.97)]
+        self.assertEqual(filter_claims_for_source(claims, source=source, context=self.context), [])
+
+    def test_rejects_claim_with_numeric_detail_absent_from_source(self):
+        source = {
+            'title': 'Adasight case study',
+            'excerpt': 'Adasight improved the onboarding experience for customers.',
+        }
+        claims = [_claim('Adasight improved onboarding conversion by 25 percent.', confidence=0.9)]
+        self.assertEqual(filter_claims_for_source(claims, source=source, context=self.context), [])
+
+    def test_keeps_supported_target_claim_and_caps_single_source_confidence(self):
+        source = {
+            'title': 'Adasight case study',
+            'excerpt': 'Adasight improved onboarding conversion by 5% for a customer.',
+            'score': 1.0,
+        }
+        claims = [_claim('Adasight improved onboarding conversion by 5% for a customer.', confidence=0.97)]
+        [filtered] = filter_claims_for_source(claims, source=source, context=self.context)
+        self.assertEqual(filtered.confidence, 0.9)
 
 
 class NormalizeClaimTextTest(unittest.TestCase):

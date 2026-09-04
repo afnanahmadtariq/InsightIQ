@@ -68,9 +68,24 @@ class FakeCursor:
 RUN_ID = 'run-1'
 ORGANIZATION_ID = 'org-1'
 CLAIMED_ROW = (RUN_ID, ORGANIZATION_ID, 'running', 0)
-SOURCE_ROW = ('source-1', 'https://example.test/a', 'A Title', 'A Publisher', 'A Excerpt', None)
+SOURCE_ROW = (
+    'source-1',
+    'https://example.test/a',
+    'Acme funding announcement',
+    'A Publisher',
+    'Acme announced it raised $5 million in a new funding round.',
+    None,
+    {'matches': [{'score': 0.9}]},
+)
 RUN_CONTEXT_ROW = (RUN_ID, ORGANIZATION_ID, 'meeting', 'user-1', 'Jane Doe', 'Acme', 'Platform', 'Better conversations.')
-EVIDENCE_ROW = ('evidence-1', 'Acme raised $5M', 'funding', 0.9, 'https://example.test/a', 'A Title')
+EVIDENCE_ROW = (
+    'evidence-1',
+    'Acme announced it raised $5 million in a new funding round.',
+    'funding',
+    0.9,
+    'https://example.test/a',
+    'Acme funding announcement',
+)
 
 
 class FakeConnection:
@@ -204,7 +219,7 @@ class EvidenceStageHappyPathTest(unittest.TestCase):
             sources_rows=[SOURCE_ROW],
         )
         fake_client = FakeModelClient(
-            [json.dumps({'claims': [{'claim': 'Acme raised $5M', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
+            [json.dumps({'claims': [{'claim': 'Acme announced it raised $5 million in a new funding round.', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
         )
         worker = Worker(database_url='postgresql://x', model_client_factory=lambda _config: fake_client)
 
@@ -256,7 +271,7 @@ class EvidenceStageSuccessBackoffTest(unittest.TestCase):
             sources_rows=[SOURCE_ROW],
         )
         fake_client = FakeModelClient(
-            [json.dumps({'claims': [{'claim': 'Acme raised $5M', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
+            [json.dumps({'claims': [{'claim': 'Acme announced it raised $5 million in a new funding round.', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
         )
         worker = Worker(database_url='postgresql://x', model_client_factory=lambda _config: fake_client)
 
@@ -281,7 +296,7 @@ class EvidenceStageInsertFailureRollsBackTest(unittest.TestCase):
             raise_error=RuntimeError('constraint violation'),
         )
         fake_client = FakeModelClient(
-            [json.dumps({'claims': [{'claim': 'Acme raised $5M', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
+            [json.dumps({'claims': [{'claim': 'Acme announced it raised $5 million in a new funding round.', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
         )
         worker = Worker(database_url='postgresql://x', model_client_factory=lambda _config: fake_client)
 
@@ -304,7 +319,10 @@ class EvidenceStageInsertFailureRollsBackTest(unittest.TestCase):
 
 class EvidenceStageBlankExcerptTest(unittest.TestCase):
     def test_source_with_blank_excerpt_is_skipped_and_run_fails_with_no_surviving_claims(self):
-        blank_source = ('source-blank', 'https://example.test/b', 'B Title', 'B Publisher', '   ', None)
+        blank_source = (
+            'source-blank', 'https://example.test/b', 'B Title', 'B Publisher', '   ', None,
+            {'matches': [{'score': 0.8}]},
+        )
         connection = FakeConnection(
             claimed_row=CLAIMED_ROW,
             counts_row=(1, 0, False),
@@ -323,14 +341,17 @@ class EvidenceStageBlankExcerptTest(unittest.TestCase):
         self.assertNotIn(INSERT_EVIDENCE_SQL, connection.executed_sql())
 
     def test_source_with_null_excerpt_is_skipped_while_other_sources_still_process_normally(self):
-        null_excerpt_source = ('source-null', 'https://example.test/n', 'N Title', 'N Publisher', None, None)
+        null_excerpt_source = (
+            'source-null', 'https://example.test/n', 'N Title', 'N Publisher', None, None,
+            {'matches': [{'score': 0.8}]},
+        )
         connection = FakeConnection(
             claimed_row=CLAIMED_ROW,
             counts_row=(2, 0, False),
             sources_rows=[null_excerpt_source, SOURCE_ROW],
         )
         fake_client = FakeModelClient(
-            [json.dumps({'claims': [{'claim': 'Acme raised $5M', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
+            [json.dumps({'claims': [{'claim': 'Acme announced it raised $5 million in a new funding round.', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]})]
         )
         worker = Worker(database_url='postgresql://x', model_client_factory=lambda _config: fake_client)
 
@@ -350,8 +371,14 @@ class EvidenceStageBlankExcerptTest(unittest.TestCase):
 
 class EvidenceStageDegradeOneSourceTest(unittest.TestCase):
     def test_structured_output_error_on_one_source_degrades_it_but_run_still_succeeds(self):
-        failing_source = ('source-fail', 'https://example.test/f', 'Fail Title', 'Fail Publisher', 'Fail excerpt', None)
-        ok_source = ('source-ok', 'https://example.test/ok', 'OK Title', 'OK Publisher', 'OK excerpt', None)
+        failing_source = (
+            'source-fail', 'https://example.test/f', 'Fail Title', 'Fail Publisher', 'Fail excerpt', None,
+            {'matches': [{'score': 0.8}]},
+        )
+        ok_source = (
+            'source-ok', 'https://example.test/ok', 'Acme funding', 'OK Publisher',
+            'Acme announced it raised $5 million in a new funding round.', None, {'matches': [{'score': 0.9}]},
+        )
         connection = FakeConnection(
             claimed_row=CLAIMED_ROW,
             counts_row=(2, 0, False),
@@ -361,7 +388,7 @@ class EvidenceStageDegradeOneSourceTest(unittest.TestCase):
             [
                 'not json',
                 'not json',
-                json.dumps({'claims': [{'claim': 'Acme raised $5M', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]}),
+                json.dumps({'claims': [{'claim': 'Acme announced it raised $5 million in a new funding round.', 'signalType': 'funding', 'confidence': 0.9, 'observedAt': None}]}),
             ]
         )
         worker = Worker(database_url='postgresql://x', model_client_factory=lambda _config: fake_client)

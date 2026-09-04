@@ -2,7 +2,12 @@ import { ConflictException, Injectable, Logger, NotFoundException, Unprocessable
 import { db } from '@insightiq/db'
 import { AccountContextService, type AuthenticatedSession } from '../auth/account-context.service'
 import { TavilySearchService } from '../tavily/tavily-search.service'
-import { buildDiscoveryQueries, deduplicateDiscoveredSources, type DiscoveredSource } from './research-discovery'
+import {
+  buildDiscoveryQueries,
+  deduplicateDiscoveredSources,
+  filterDiscoveryBatches,
+  type DiscoveredSource,
+} from './research-discovery'
 import { WikipediaDiscoveryService } from './wikipedia-discovery.service'
 
 function safeErrorMessage(error: unknown) {
@@ -41,29 +46,30 @@ export class ResearchDiscoveryService {
       const settled = await Promise.allSettled(queries.map((item) => this.tavily.search({ ...item, sessionId: run.id })))
       const batches = settled.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
       const failedQueries = settled.length - batches.length
-      let sources: DiscoveredSource[] = batches.length ? deduplicateDiscoveredSources(batches) : []
+      const relevantBatches = filterDiscoveryBatches(batches, run.prospect)
+      let sources: DiscoveredSource[] = relevantBatches.length ? deduplicateDiscoveredSources(relevantBatches) : []
       let wikipediaSources = 0
 
       if (!sources.length) {
         this.log.warn('Tavily returned no sources for run=%s; falling back to Wikipedia', run.id)
         const fallback = await this.wikipedia.discover(run.prospect)
-        wikipediaSources = fallback.length
-        sources = fallback.map((source) => ({
-          url: source.url,
-          title: source.title,
-          publisher: source.publisher,
-          excerpt: source.excerpt,
-          publishedAt: null,
-          score: source.score,
-          matches: [{
-            kind: 'wikipedia-fallback',
-            query: source.query,
-            requestId: 'wikipedia',
-            responseTimeMs: 0,
-            credits: null,
+        const fallbackBatches = fallback.map((source) => ({
+          kind: 'wikipedia-fallback',
+          query: source.query,
+          requestId: 'wikipedia',
+          responseTimeMs: 0,
+          credits: null,
+          sources: [{
+            url: source.url,
+            title: source.title,
+            publisher: source.publisher,
+            excerpt: source.excerpt,
+            publishedAt: null,
             score: source.score,
           }],
         }))
+        sources = deduplicateDiscoveredSources(filterDiscoveryBatches(fallbackBatches, run.prospect))
+        wikipediaSources = sources.length
       }
 
       if (!sources.length) {

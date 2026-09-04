@@ -60,7 +60,7 @@ services:
       TAVILY_SEARCH_DEPTH: ${TAVILY_SEARCH_DEPTH:-advanced}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
-      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen3-max}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen3.8-max}
       WORKER_USE_CRAWL4AI: ${WORKER_USE_CRAWL4AI:-false}
     depends_on:
       postgres:

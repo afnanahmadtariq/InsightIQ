@@ -7,7 +7,14 @@ from insightiq_worker.models import ExtractedClaim, RunContext, SignalType
 
 SENTENCE_SPLIT = re.compile(r'(?<=[.!?])\s+')
 JUNK = re.compile(
-    r'1[- ]?800|call us|copyright|©|all rights reserved|privacy policy|terms of use|cookie',
+    r'1[- ]?800|call us|copyright|©|all rights reserved|privacy policy|terms of use|cookie|'
+    r'liked by|view post|view profile|activity image|report this|sign in|agree\s*(?:&|and)\s*join|'
+    r'join now|see all profiles|people also viewed|image \d+ of \d+|uploaded by|ai-enhanced description|'
+    r'\bconnections?\b|\bfollowers?\b|\bn\/a\b',
+    re.I,
+)
+TRUNCATED = re.compile(
+    r'(?:\.{3}|…)|(?:\b(?:and|or|a|an|the|to|for|with|of|at|in|as|by)\s*[.!?]?$)',
     re.I,
 )
 FRUIT_CONTEXT = re.compile(
@@ -78,7 +85,14 @@ def company_tokens(company_name: Optional[str]) -> set[str]:
 
 
 def is_junk_claim(sentence: str) -> bool:
-    return bool(JUNK.search(sentence))
+    cleaned = ' '.join(sentence.split()).strip()
+    if len(cleaned) < 20 or len(cleaned) > 500:
+        return True
+    if JUNK.search(cleaned) or TRUNCATED.search(cleaned):
+        return True
+    if '#' in cleaned:
+        return True
+    return len(re.findall(r'[A-Za-z]{2,}', cleaned)) < 4
 
 
 def is_relevant_claim(sentence: str, *, prospect_name: str, company_name: Optional[str]) -> bool:
@@ -89,20 +103,13 @@ def is_relevant_claim(sentence: str, *, prospect_name: str, company_name: Option
         return False
     if re.search(r'\bapples\b', lowered) and 'apple inc' not in lowered:
         return False
-    people = prospect_tokens(prospect_name)
+    person = ' '.join(prospect_name.lower().split())
     companies = company_tokens(company_name)
-    signal_type = classify_sentence(sentence)
 
-    if any(token in lowered for token in people):
+    if person and person in lowered:
         return True
     if any(token in lowered for token in companies):
         return True
-    if signal_type != 'other':
-        return True
-
-    if company_name and ' ' not in company_name.strip():
-        if FRUIT_CONTEXT.search(sentence) and not BUSINESS_CONTEXT.search(sentence):
-            return False
     return False
 
 
@@ -211,6 +218,8 @@ def rank_evidence_for_brief(
             continue
         signal_type = str(row.get('signal_type', 'other'))
         confidence = float(row.get('confidence', 0.0))
+        if confidence < 0.55 or (signal_type == 'other' and confidence < 0.80):
+            continue
         score = confidence + SIGNAL_WEIGHT.get(signal_type, 0.0)  # type: ignore[arg-type]
         ranked.append((score, dict(row)))
     ranked.sort(key=lambda item: item[0], reverse=True)

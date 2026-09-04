@@ -8,7 +8,9 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from insightiq_worker.extract import is_junk_claim, is_relevant_claim
 from insightiq_worker.model_gateway import ModelGatewayConfig, request_structured_output
+from insightiq_worker.models import RunContext
 
 SIGNAL_TYPES: frozenset[str] = frozenset(
     {'hiring', 'funding', 'launch', 'leadership', 'partnership', 'role-context', 'other'}
@@ -20,6 +22,11 @@ MAX_CLAIMS_PER_SOURCE = 10
 _TRAILING_PUNCTUATION = '.,!?'
 _WHITESPACE_PATTERN = re.compile(r'\s+')
 _NUMERIC_TOKEN_PATTERN = re.compile(r'(?<![a-z0-9])\$?\d[\d,]*\.?\d*%?[a-z]?')
+_WORD_PATTERN = re.compile(r'[a-z0-9$%]+')
+_SUPPORT_STOP_WORDS = frozenset({
+    'about', 'after', 'also', 'and', 'are', 'at', 'for', 'from', 'has', 'have', 'into', 'its',
+    'new', 'of', 'on', 'that', 'the', 'their', 'this', 'to', 'was', 'were', 'with',
+})
 
 
 class ExtractedClaim(BaseModel):
@@ -63,12 +70,22 @@ class EvidenceRow:
     observed_at: Optional[str]
 
 
-def build_extraction_prompt(source: dict) -> tuple[str, str]:
+def build_extraction_prompt(source: dict, context: Optional[RunContext] = None) -> tuple[str, str]:
     signal_type_list = ', '.join(sorted(SIGNAL_TYPES))
+    target = (
+        f'The target prospect is {context.prospect_name!r} and the target company is '
+        f'{(context.company_name or "not supplied")!r}. '
+        if context is not None
+        else ''
+    )
     system_prompt = (
-        'You are an evidence extraction assistant for investment research. '
+        'You extract citable evidence for B2B sales research. '
+        f'{target}'
         'Extract only claims that are directly supported by the provided excerpt — '
         'never infer or assume facts not stated in the text. '
+        'Keep only standalone facts explicitly about the target prospect or target company. '
+        'Reject directory listings, social activity labels, comments by other people, navigation text, '
+        'truncated fragments, and generic industry claims. Include the named person or company in every claim. '
         f'Classify each claim with a signalType chosen from this closed list: {signal_type_list}. '
         'Assign a confidence between 0.0 and 1.0 reflecting how clearly the excerpt supports the claim. '
         'Set observedAt to the date the claim was true or reported, formatted as YYYY-MM-DD, or null if no date is stated. '
@@ -86,8 +103,13 @@ def build_extraction_prompt(source: dict) -> tuple[str, str]:
     return system_prompt, user_prompt
 
 
-def extract_claims_for_source(client, config: ModelGatewayConfig, source: dict) -> list[ExtractedClaim]:
-    system_prompt, user_prompt = build_extraction_prompt(source)
+def extract_claims_for_source(
+    client,
+    config: ModelGatewayConfig,
+    source: dict,
+    context: Optional[RunContext] = None,
+) -> list[ExtractedClaim]:
+    system_prompt, user_prompt = build_extraction_prompt(source, context)
     result = request_structured_output(
         client,
         config,
@@ -96,6 +118,55 @@ def extract_claims_for_source(client, config: ModelGatewayConfig, source: dict) 
         schema=SourceClaims,
     )
     return result.claims
+
+
+def _support_tokens(text: str) -> set[str]:
+    return {
+        token for token in _WORD_PATTERN.findall(text.lower())
+        if len(token) >= 3 and token not in _SUPPORT_STOP_WORDS
+    }
+
+
+def _claim_has_source_support(claim: str, source: dict) -> bool:
+    source_text = f'{source.get("title", "")} {source.get("excerpt", "")}'
+    claim_numbers = _extract_numeric_tokens(claim.lower())
+    source_numbers = _extract_numeric_tokens(source_text.lower())
+    if claim_numbers and not claim_numbers.issubset(source_numbers):
+        return False
+    claim_tokens = _support_tokens(claim)
+    if not claim_tokens:
+        return False
+    overlap = claim_tokens & _support_tokens(source_text)
+    return len(overlap) >= 2 and (len(overlap) / len(claim_tokens)) >= 0.35
+
+
+def filter_claims_for_source(
+    claims: list[ExtractedClaim],
+    *,
+    source: dict,
+    context: RunContext,
+) -> list[ExtractedClaim]:
+    filtered: list[ExtractedClaim] = []
+    for claim in claims:
+        if is_junk_claim(claim.claim):
+            continue
+        if not is_relevant_claim(
+            claim.claim,
+            prospect_name=context.prospect_name,
+            company_name=context.company_name,
+        ):
+            continue
+        if not _claim_has_source_support(claim.claim, source):
+            continue
+        source_score = min(max(float(source.get('score', 0.0)), 0.0), 1.0)
+        source_cap = 0.65 + (source_score * 0.25)
+        signal_cap = 0.72 if claim.signalType == 'other' else 0.90
+        confidence_cap = min(source_cap, signal_cap)
+        confidence = min(claim.confidence, confidence_cap)
+        if confidence < 0.55:
+            continue
+        filtered.append(claim.model_copy(update={'confidence': confidence}))
+    return filtered
 
 
 def _normalize_claim_text(text: str) -> str:

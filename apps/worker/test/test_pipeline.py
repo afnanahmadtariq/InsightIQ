@@ -1,6 +1,6 @@
 import unittest
 
-from insightiq_worker.extract import classify_sentence, extract_claims, merge_claim_lists
+from insightiq_worker.extract import classify_sentence, extract_claims, is_junk_claim, is_relevant_claim, merge_claim_lists
 from insightiq_worker.llm import DEFAULT_DASHSCOPE_BASE_URL, fallback_claims, llm_enabled, resolve_llm_config
 from insightiq_worker.models import SourceBundle
 from insightiq_worker.tavily import build_discovery_queries, tavily_configured
@@ -82,7 +82,7 @@ class LlmTest(unittest.TestCase):
 
         self.assertEqual(config.api_key, 'dashscope-key')
         self.assertEqual(config.base_url, DEFAULT_DASHSCOPE_BASE_URL)
-        self.assertEqual(config.model, 'qwen3-max')
+        self.assertEqual(config.model, 'qwen3.8-max')
 
     def test_legacy_model_override_remains_supported_per_provider(self):
         from unittest.mock import patch
@@ -132,6 +132,22 @@ class ExtractTest(unittest.TestCase):
         second = extract_claims('Microsoft is hiring cloud engineers in Seattle.', prospect_name='Tim Cook', company_name='Microsoft')
         merged = merge_claim_lists([first, second], limit=5)
         self.assertEqual(len(merged), 1)
+
+    def test_rejects_linkedin_activity_and_truncated_fragments(self):
+        self.assertTrue(is_junk_claim('For a while.… Liked by Taha Ashfaq View Post Activity Image'))
+        self.assertTrue(is_junk_claim('Taha is a UX/UI Designer at Adasight and a'))
+        self.assertTrue(
+            is_junk_claim('# Danyal Rana Software Engineer 44 connections, 50 followers ## About N/A')
+        )
+
+    def test_signal_keyword_without_target_identity_is_not_relevant(self):
+        self.assertFalse(
+            is_relevant_claim(
+                'Another company is hiring account executives across Europe.',
+                prospect_name='Jane Doe',
+                company_name='Acme',
+            )
+        )
 
 
 class BriefGateTest(unittest.TestCase):
@@ -291,6 +307,26 @@ class BriefGateTest(unittest.TestCase):
         self.assertTrue(sections.personalized_opener)
         self.assertTrue(sections.objection_handling)
         self.assertTrue(sections.next_steps)
+
+    def test_seller_intent_is_not_copied_into_buyer_questions(self):
+        context = RunContext(
+            run_id='run', organization_id='org', goal='meeting', created_by_id='user',
+            prospect_name='Jane Doe', company_name='Acme', offer_name='Platform',
+            value_proposition='I need to get her to buy my SaaS tool.',
+        )
+        evidence = [{
+            'id': new_id(), 'claim': 'Acme is hiring enterprise account executives in Austin.',
+            'signal_type': 'hiring', 'confidence': 0.82, 'source_url': 'https://example.com/acme',
+            'source_title': 'Example',
+        }]
+
+        result = build_brief_graph().invoke(
+            {'context': context, 'evidence': evidence, 'sections': None, 'error': None}
+        )
+        sections = BriefSections.model_validate(result['sections'].model_dump())
+        rendered = ' '.join([sections.summary, *sections.questions_to_ask, *sections.gaps]).lower()
+        self.assertNotIn('get her to buy', rendered)
+        self.assertTrue(any('buyer outcome' in gap.lower() for gap in sections.gaps))
 
 
 if __name__ == '__main__':

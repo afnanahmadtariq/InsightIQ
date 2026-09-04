@@ -132,6 +132,7 @@ def _process_evidence_gateway(
     connection,
     run_id: str,
     organization_id: str,
+    context: RunContext,
     *,
     model_client_factory: Optional[Callable[[ModelGatewayConfig], object]] = None,
 ) -> int:
@@ -144,8 +145,9 @@ def _process_evidence_gateway(
             'publisher': publisher,
             'excerpt': excerpt,
             'publishedAt': published_at,
+            'score': _source_score(metadata),
         }
-        for source_id, url, title, publisher, excerpt, published_at in source_rows
+        for source_id, url, title, publisher, excerpt, published_at, metadata in source_rows
     ]
     if not sources:
         raise RuntimeError('no sources to normalize')
@@ -163,7 +165,7 @@ def _process_evidence_gateway(
             claims_by_source.append((source['id'], []))
             continue
         try:
-            extracted = evidence.extract_claims_for_source(client, config, source)
+            extracted = evidence.extract_claims_for_source(client, config, source, context)
         except StructuredOutputError as error:
             log.warning(
                 'evidence extraction failed for source run_id=%s source_id=%s error=%s',
@@ -172,7 +174,8 @@ def _process_evidence_gateway(
                 str(error)[:1000],
             )
             extracted = []
-        claims_by_source.append((source['id'], _prefer_source_published_at(source, extracted)))
+        filtered = evidence.filter_claims_for_source(extracted, source=source, context=context)
+        claims_by_source.append((source['id'], _prefer_source_published_at(source, filtered)))
 
     resolvable_source_ids = {source['id'] for source in sources}
     evidence_rows = evidence.assemble_evidence_rows(claims_by_source, resolvable_source_ids)
@@ -294,15 +297,16 @@ def process_evidence_stage(
         log.info('evidence stage skipped run_id=%s existing_claims=%s', run_id, existing)
         return existing
 
+    context = run_context_from_row(row)
     if _gateway_enabled():
         return _process_evidence_gateway(
             connection,
             run_id,
             organization_id,
+            context,
             model_client_factory=model_client_factory,
         )
 
-    context = run_context_from_row(row)
     return _process_evidence_langgraph(connection, run_id, organization_id, context)
 
 

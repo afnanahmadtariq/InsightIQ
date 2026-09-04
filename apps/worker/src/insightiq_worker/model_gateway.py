@@ -7,7 +7,7 @@ from typing import Optional
 from pydantic import BaseModel, ValidationError
 
 DEFAULT_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
-DEFAULT_MODEL = 'qwen3-max'
+DEFAULT_MODEL = 'qwen3.8-max'
 MAX_STRUCTURED_OUTPUT_ATTEMPTS = 2
 
 
@@ -49,6 +49,7 @@ def request_structured_output(
             model=config.model,
             messages=messages,
             response_format={'type': 'json_object'},
+            extra_body={'enable_thinking': False},
         )
         try:
             payload = json.loads(response.choices[0].message.content)
