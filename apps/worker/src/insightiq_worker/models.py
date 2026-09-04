@@ -82,3 +82,4 @@ class RunContext(BaseModel):
     company_name: Optional[str]
     offer_name: str
     value_proposition: str
+    sender_name: Optional[str] = None

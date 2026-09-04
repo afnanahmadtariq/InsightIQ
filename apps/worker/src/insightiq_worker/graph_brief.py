@@ -7,7 +7,7 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import ValidationError
 
 from insightiq_worker.extract import rank_evidence_for_brief
-from insightiq_worker.llm import polish_brief
+from insightiq_worker.llm import personalize_outreach_draft, polish_brief
 from insightiq_worker.models import BriefCitation, BriefSections, RunContext
 
 
@@ -122,10 +122,11 @@ def assemble_sections(state: BriefState) -> BriefState:
         else [f'Ask for a 15-minute conversation to validate whether the cited signal is creating a priority at {company}.']
     )
     if context.goal == 'outreach':
-        outreach = (
+        outreach = personalize_outreach_draft(
             f'Hi {first},\n\nI noticed {lead.rstrip(".").lower()}. '
             f'I am curious whether that is creating pressure around {offer_outcome.lower()}. '
-            f'That is where {context.offer_name} may help.\n\nOpen to comparing notes for 15 minutes?'
+            f'That is where {context.offer_name} may help.\n\nOpen to comparing notes for 15 minutes?',
+            context.sender_name,
         )
 
     gaps: list[str] = []

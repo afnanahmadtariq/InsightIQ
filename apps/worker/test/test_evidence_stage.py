@@ -14,7 +14,7 @@ from insightiq_worker.pipeline import (
     FETCH_SOURCES_SQL,
     INSERT_EVIDENCE_SQL,
 )
-from insightiq_worker.stages import _assemble_langgraph_evidence, process_brief_stage
+from insightiq_worker.stages import LOAD_RUN_SQL, _assemble_langgraph_evidence, process_brief_stage, run_context_from_row
 
 
 class _FakeMessage:
@@ -77,7 +77,17 @@ SOURCE_ROW = (
     None,
     {'matches': [{'score': 0.9}]},
 )
-RUN_CONTEXT_ROW = (RUN_ID, ORGANIZATION_ID, 'meeting', 'user-1', 'Jane Doe', 'Acme', 'Platform', 'Better conversations.')
+RUN_CONTEXT_ROW = (
+    RUN_ID,
+    ORGANIZATION_ID,
+    'meeting',
+    'user-1',
+    'Jane Doe',
+    'Acme',
+    'Platform',
+    'Better conversations.',
+    'Alex Morgan',
+)
 EVIDENCE_ROW = (
     'evidence-1',
     'Acme announced it raised $5 million in a new funding round.',
@@ -187,6 +197,11 @@ class EvidenceSqlInvariantsTest(unittest.TestCase):
 
     def test_insert_evidence_sql_scoped_by_organization_id(self):
         self.assertIn('"organizationId"', INSERT_EVIDENCE_SQL)
+
+    def test_run_context_loads_sender_name_from_snapshot_or_profile(self):
+        self.assertIn('inputSnapshot', LOAD_RUN_SQL)
+        self.assertIn('creator.name', LOAD_RUN_SQL)
+        self.assertEqual(run_context_from_row(RUN_CONTEXT_ROW).sender_name, 'Alex Morgan')
 
 
 class EvidenceStageIdempotencyTest(unittest.TestCase):

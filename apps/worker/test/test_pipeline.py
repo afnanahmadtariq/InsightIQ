@@ -1,7 +1,13 @@
 import unittest
 
 from insightiq_worker.extract import classify_sentence, extract_claims, is_junk_claim, is_relevant_claim, merge_claim_lists
-from insightiq_worker.llm import DEFAULT_DASHSCOPE_BASE_URL, fallback_claims, llm_enabled, resolve_llm_config
+from insightiq_worker.llm import (
+    DEFAULT_DASHSCOPE_BASE_URL,
+    fallback_claims,
+    llm_enabled,
+    personalize_outreach_draft,
+    resolve_llm_config,
+)
 from insightiq_worker.models import SourceBundle
 from insightiq_worker.tavily import build_discovery_queries, tavily_configured
 from insightiq_worker.graph_brief import build_brief_graph, citation_gate, new_id
@@ -95,6 +101,16 @@ class LlmTest(unittest.TestCase):
             config = resolve_llm_config()
 
         self.assertEqual(config.model, 'qwen-legacy')
+
+    def test_outreach_uses_sender_name_instead_of_placeholder(self):
+        draft = 'Hi Jane,\n\nWorth a conversation?\n\nBest,\n[Your Name]'
+
+        personalized = personalize_outreach_draft(draft, 'Alex Morgan')
+
+        self.assertIsNotNone(personalized)
+        self.assertNotIn('[Your Name]', personalized or '')
+        self.assertTrue((personalized or '').endswith('Best,\nAlex Morgan'))
+
 
 class ExtractTest(unittest.TestCase):
     def test_classifies_hiring_sentence(self):
@@ -307,6 +323,28 @@ class BriefGateTest(unittest.TestCase):
         self.assertTrue(sections.personalized_opener)
         self.assertTrue(sections.objection_handling)
         self.assertTrue(sections.next_steps)
+
+    def test_generated_outreach_is_signed_with_profile_name(self):
+        context = RunContext(
+            run_id='run', organization_id='org', goal='outreach', created_by_id='user',
+            prospect_name='Jane Doe', company_name='Acme', offer_name='Platform',
+            value_proposition='Improve sales research quality and reduce preparation time.',
+            sender_name='Alex Morgan',
+        )
+        evidence = [{
+            'id': new_id(), 'claim': 'Acme is hiring enterprise account executives in Austin.',
+            'signal_type': 'hiring', 'confidence': 0.82, 'source_url': 'https://example.com/acme',
+            'source_title': 'Example',
+        }]
+
+        result = build_brief_graph().invoke(
+            {'context': context, 'evidence': evidence, 'sections': None, 'error': None}
+        )
+        sections = BriefSections.model_validate(result['sections'].model_dump())
+
+        self.assertIsNotNone(sections.outreach_draft)
+        self.assertTrue((sections.outreach_draft or '').endswith('Best,\nAlex Morgan'))
+        self.assertNotIn('[Your Name]', sections.outreach_draft or '')
 
     def test_seller_intent_is_not_copied_into_buyer_questions(self):
         context = RunContext(
