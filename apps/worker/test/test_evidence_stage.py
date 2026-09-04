@@ -186,7 +186,7 @@ class EvidenceStageIdempotencyTest(unittest.TestCase):
             evidence_rows=[EVIDENCE_ROW],
         )
         worker = Worker(database_url='postgresql://x', model_client_factory=factory)
-        with patch.dict(os.environ, {'DASHSCOPE_API_KEY': 'test-key'}):
+        with patch.dict(os.environ, {}, clear=True):
             with patch('psycopg.connect', return_value=connection):
                 result = worker.poll_once()
 

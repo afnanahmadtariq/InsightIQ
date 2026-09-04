@@ -34,10 +34,14 @@ test('seeded auth to cited brief journey', async ({ page, request }) => {
   await page.getByLabel('Work email').fill(seed.email)
   await page.getByLabel('Password').fill(seed.password)
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await page.waitForURL('**/dashboard**')
+  await page.waitForURL(/\/(?:dashboard|onboarding)(?:[/?#]|$)/)
+  if (new URL(page.url()).pathname === '/onboarding') {
+    await page.getByRole('button', { name: /E2E Workspace/ }).click()
+    await page.waitForURL('**/dashboard**')
+  }
 
   await page.goto(`/dashboard/research/${seed.runId}`)
-  await expect(page.getByRole('heading', { name: seed.prospectName })).toBeVisible()
+  await expect(page.getByRole('heading', { name: seed.prospectName, exact: true })).toBeVisible()
   await expect(page.getByText('Research complete').or(page.getByText('Deal brief ready'))).toBeVisible()
 
   await page.goto(`/dashboard/briefs/${seed.briefId}`)

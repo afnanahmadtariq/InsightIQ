@@ -36,12 +36,15 @@ test('Google credentials must be configured as a pair', () => {
 
 test('Better Auth account identity matches the 1.7 database contract', () => {
   const authSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/auth.ts'), 'utf8')
+  const e2eSeedSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/e2e/e2e-seed.service.ts'), 'utf8')
   const prismaSchema = readFileSync(resolve(repositoryRoot, 'packages/db/prisma/schema.prisma'), 'utf8')
 
   assert.match(authSource, /identityStrategy: 'provider-id'/)
   assert.match(prismaSchema, /model Account \{[\s\S]*?issuer\s+String/)
   assert.match(prismaSchema, /@@unique\(\[issuer, accountId\]\)/)
   assert.doesNotMatch(prismaSchema, /@@unique\(\[providerId, accountId\]\)/)
+  assert.match(e2eSeedSource, /issuer: createLocalAccountIssuer\('credential'\)/)
+  assert.match(e2eSeedSource, /accountId: userId/)
 })
 
 test('Tavily discovery settings are bounded and have useful defaults', () => {

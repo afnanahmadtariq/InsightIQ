@@ -34,6 +34,8 @@ export default defineConfig({
         DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/insightiq?schema=public',
         BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET || 'local-better-auth-secret-minimum-32-chars',
         BETTER_AUTH_URL: `http://127.0.0.1:${apiPort}`,
+        BETTER_AUTH_TRUSTED_ORIGINS: `http://127.0.0.1:${webPort}`,
+        BETTER_AUTH_COOKIE_DOMAIN: '',
         WEB_ORIGIN: `http://127.0.0.1:${webPort}`,
       },
     },

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from dataclasses import dataclass
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -11,6 +12,10 @@ from insightiq_worker.extract import extract_claims, is_relevant_claim
 from insightiq_worker.models import BriefSections, EvidenceDraft, RunContext, SignalType, SourceBundle
 
 log = logging.getLogger('insightiq.worker.llm')
+
+DEFAULT_OPENAI_MODEL = 'gpt-4o-mini'
+DEFAULT_DASHSCOPE_MODEL = 'qwen3-max'
+DEFAULT_DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 
 SIGNAL_TYPES = (
     'hiring',
@@ -44,6 +49,33 @@ class LlmBriefCopy(BaseModel):
     outreach_draft: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class LlmRuntimeConfig:
+    api_key: str
+    base_url: Optional[str]
+    model: str
+
+
+def resolve_llm_config() -> LlmRuntimeConfig:
+    openai_key = os.environ.get('OPENAI_API_KEY', '').strip()
+    dashscope_key = os.environ.get('DASHSCOPE_API_KEY', '').strip()
+    legacy_model = os.environ.get('WORKER_LLM_MODEL', '').strip()
+
+    if openai_key:
+        return LlmRuntimeConfig(
+            api_key=openai_key,
+            base_url=os.environ.get('OPENAI_BASE_URL', '').strip() or None,
+            model=os.environ.get('OPENAI_MODEL', '').strip() or legacy_model or DEFAULT_OPENAI_MODEL,
+        )
+    if dashscope_key:
+        return LlmRuntimeConfig(
+            api_key=dashscope_key,
+            base_url=os.environ.get('DASHSCOPE_BASE_URL', '').strip() or DEFAULT_DASHSCOPE_BASE_URL,
+            model=os.environ.get('DASHSCOPE_MODEL', '').strip() or legacy_model or DEFAULT_DASHSCOPE_MODEL,
+        )
+    raise RuntimeError('OPENAI_API_KEY or DASHSCOPE_API_KEY is required for LLM features')
+
+
 def llm_enabled() -> bool:
     return bool(os.environ.get('OPENAI_API_KEY', '').strip() or os.environ.get('DASHSCOPE_API_KEY', '').strip())
 
@@ -54,13 +86,12 @@ def _client():
     except ImportError as error:
         raise RuntimeError('openai package required for LLM features; pip install insightiq-worker[llm]') from error
 
-    api_key = os.environ.get('OPENAI_API_KEY', '').strip() or os.environ.get('DASHSCOPE_API_KEY', '').strip()
-    base_url = os.environ.get('OPENAI_BASE_URL', '').strip() or None
-    return OpenAI(api_key=api_key, base_url=base_url)
+    config = resolve_llm_config()
+    return OpenAI(api_key=config.api_key, base_url=config.base_url)
 
 
 def _model() -> str:
-    return os.environ.get('WORKER_LLM_MODEL', 'gpt-4o-mini').strip()
+    return resolve_llm_config().model
 
 
 def _chat_json(system: str, user: str) -> dict:

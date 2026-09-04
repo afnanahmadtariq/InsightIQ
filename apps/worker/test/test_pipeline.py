@@ -1,7 +1,7 @@
 import unittest
 
 from insightiq_worker.extract import classify_sentence, extract_claims, merge_claim_lists
-from insightiq_worker.llm import fallback_claims, llm_enabled
+from insightiq_worker.llm import DEFAULT_DASHSCOPE_BASE_URL, fallback_claims, llm_enabled, resolve_llm_config
 from insightiq_worker.models import SourceBundle
 from insightiq_worker.tavily import build_discovery_queries, tavily_configured
 from insightiq_worker.graph_brief import build_brief_graph, citation_gate, new_id
@@ -54,6 +54,47 @@ class LlmTest(unittest.TestCase):
         drafts = fallback_claims(context, sources, limit=2)
         self.assertTrue(drafts)
         self.assertIn('Cook', drafts[0].claim)
+
+    def test_openai_configuration_uses_openai_endpoint_and_model(self):
+        from unittest.mock import patch
+
+        with patch.dict(
+            'os.environ',
+            {
+                'OPENAI_API_KEY': 'openai-key',
+                'OPENAI_BASE_URL': 'https://gateway.example/v1',
+                'OPENAI_MODEL': 'gpt-test',
+                'DASHSCOPE_API_KEY': 'dashscope-key',
+            },
+            clear=True,
+        ):
+            config = resolve_llm_config()
+
+        self.assertEqual(config.api_key, 'openai-key')
+        self.assertEqual(config.base_url, 'https://gateway.example/v1')
+        self.assertEqual(config.model, 'gpt-test')
+
+    def test_dashscope_configuration_uses_dashscope_endpoint_and_model(self):
+        from unittest.mock import patch
+
+        with patch.dict('os.environ', {'DASHSCOPE_API_KEY': 'dashscope-key'}, clear=True):
+            config = resolve_llm_config()
+
+        self.assertEqual(config.api_key, 'dashscope-key')
+        self.assertEqual(config.base_url, DEFAULT_DASHSCOPE_BASE_URL)
+        self.assertEqual(config.model, 'qwen3-max')
+
+    def test_legacy_model_override_remains_supported_per_provider(self):
+        from unittest.mock import patch
+
+        with patch.dict(
+            'os.environ',
+            {'DASHSCOPE_API_KEY': 'dashscope-key', 'WORKER_LLM_MODEL': 'qwen-legacy'},
+            clear=True,
+        ):
+            config = resolve_llm_config()
+
+        self.assertEqual(config.model, 'qwen-legacy')
 
 class ExtractTest(unittest.TestCase):
     def test_classifies_hiring_sentence(self):

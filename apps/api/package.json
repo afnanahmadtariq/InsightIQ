@@ -11,6 +11,7 @@
     "check-types": "tsc --noEmit --incremental false"
   },
   "dependencies": {
+    "@better-auth/core": "^1.7.2",
     "@better-auth/prisma-adapter": "^1.7.2",
     "@insightiq/db": "*",
     "@nestjs/common": "^11.0.0",

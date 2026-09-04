@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
+import { createLocalAccountIssuer } from '@better-auth/core/db'
 import { db } from '@insightiq/db'
 import { hashPassword } from 'better-auth/crypto'
 import { randomBytes } from 'node:crypto'
@@ -20,10 +21,7 @@ export class E2eSeedService {
     const organizationId = createId()
     const memberId = createId()
     const accountId = createId()
-    const sessionId = createId()
-    const sessionToken = randomBytes(32).toString('hex')
     const now = new Date()
-    const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
     const passwordHash = await hashPassword(E2E_PASSWORD)
 
     const prospect = {
@@ -53,8 +51,8 @@ export class E2eSeedService {
       await transaction.account.create({
         data: {
           id: accountId,
-          issuer: 'InsightIQ',
-          accountId: E2E_EMAIL,
+          issuer: createLocalAccountIssuer('credential'),
+          accountId: userId,
           providerId: 'credential',
           userId,
           password: passwordHash,
@@ -77,16 +75,6 @@ export class E2eSeedService {
           createdAt: now,
         },
       })
-      await transaction.session.create({
-        data: {
-          id: sessionId,
-          token: sessionToken,
-          userId,
-          activeOrganizationId: organizationId,
-          expiresAt,
-        },
-      })
-
       const createdProspect = await transaction.prospect.create({
         data: { organizationId, createdById: userId, ...prospect },
       })
@@ -154,8 +142,6 @@ export class E2eSeedService {
       return {
         email: E2E_EMAIL,
         password: E2E_PASSWORD,
-        sessionToken,
-        cookieName: 'insightiq.session_token',
         runId: run.id,
         briefId: brief.id,
         prospectName: prospect.name,

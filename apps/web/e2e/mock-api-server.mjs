@@ -64,7 +64,7 @@ function userPayload() {
   }
 }
 
-function accountContext(activeOrganizationId = e2eFixtures.workspace.id) {
+function accountContext() {
   const workspace = { ...e2eFixtures.workspace, logo: null }
   return {
     user: { ...userPayload(), hasPassword: true },
