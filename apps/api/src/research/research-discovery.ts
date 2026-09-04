@@ -1,11 +1,17 @@
 import type { TavilyDiscoveryQuery, TavilySearchBatch, TavilySource } from '../tavily/tavily-search.service'
 
-type ProspectDiscoveryInput = {
+export type ProspectDiscoveryInput = {
   name: string
   companyName: string | null
   companyDomain: string | null
+  linkedinUrl: string | null
   xHandle: string | null
 }
+
+const MIN_DISCOVERY_SCORE = 0.35
+const COMPANY_SUFFIX = /\b(?:incorporated|inc|llc|limited|ltd|corp(?:oration)?|company|co)\.?$/i
+const LINKEDIN_DIRECTORY = /linkedin\.com\/(?:pub\/dir|search\/results)/i
+const PROFILE_DIRECTORY_TITLE = /\b\d+\+?\s+["“]?.+?["”]?\s+profiles?\b/i
 
 export type DiscoveredSource = TavilySource & {
   matches: Array<{
@@ -27,6 +33,57 @@ function quoted(value: string | null | undefined) {
   return term ? `"${term}"` : ''
 }
 
+function normalized(value: string | null | undefined) {
+  return cleanTerm(value, 500).toLowerCase()
+}
+
+function canonicalUrl(value: string | null | undefined) {
+  try {
+    const url = new URL(cleanTerm(value, 2_000))
+    return `${url.hostname.replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '').toLowerCase()}`
+  } catch {
+    return ''
+  }
+}
+
+function companyTerms(prospect: ProspectDiscoveryInput) {
+  const company = normalized(prospect.companyName)
+  const unsuffixed = company.replace(COMPANY_SUFFIX, '').trim()
+  const domain = normalized(prospect.companyDomain).replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
+  const domainLabel = domain.split('.')[0]
+  return [...new Set([company, unsuffixed, domain, domainLabel].filter((term) => term.length >= 3))]
+}
+
+function sourceMatchesIdentity(source: TavilySource, kind: string, prospect: ProspectDiscoveryInput) {
+  const haystack = normalized(`${source.title} ${source.publisher} ${source.url} ${source.excerpt}`)
+  const url = canonicalUrl(source.url)
+  const exactLinkedin = canonicalUrl(prospect.linkedinUrl)
+  const exactProfileMatch = Boolean(exactLinkedin && url === exactLinkedin)
+  const personMatch = haystack.includes(normalized(prospect.name))
+  const companyMatch = companyTerms(prospect).some((term) => haystack.includes(term))
+  const handle = normalized(prospect.xHandle).replace(/^@/, '')
+  const handleMatch = Boolean(handle && haystack.includes(handle))
+
+  if (LINKEDIN_DIRECTORY.test(source.url) || PROFILE_DIRECTORY_TITLE.test(source.title)) return false
+  if (source.score < MIN_DISCOVERY_SCORE && !exactProfileMatch) return false
+
+  if (kind === 'prospect-profile' || kind === 'recent-prospect-signals') {
+    const hasAnchor = companyMatch || handleMatch || exactProfileMatch
+    return exactProfileMatch || (personMatch && hasAnchor)
+  }
+
+  if (kind === 'company-overview' || kind === 'recent-company-signals') return companyMatch
+  if (kind === 'wikipedia-fallback') return companyMatch || (personMatch && !prospect.companyName)
+  return false
+}
+
+export function filterDiscoveryBatches(batches: TavilySearchBatch[], prospect: ProspectDiscoveryInput) {
+  return batches.map((batch) => ({
+    ...batch,
+    sources: batch.sources.filter((source) => sourceMatchesIdentity(source, batch.kind, prospect)),
+  }))
+}
+
 function query(kind: string, topic: 'general' | 'news', parts: string[], days?: number): TavilyDiscoveryQuery {
   return {
     kind,
@@ -40,9 +97,11 @@ export function buildDiscoveryQueries(prospect: ProspectDiscoveryInput): TavilyD
   const person = quoted(prospect.name)
   const company = quoted(prospect.companyName)
   const domain = cleanTerm(prospect.companyDomain, 253)
+  const linkedin = cleanTerm(prospect.linkedinUrl, 500)
   const handle = cleanTerm(prospect.xHandle, 50)
-  const identityContext = company || domain || handle
-  const queries = [query('prospect-profile', 'general', [person, identityContext, 'professional profile role experience'])]
+  const queries = [
+    query('prospect-profile', 'general', [person, company, domain, linkedin, handle, 'professional profile role experience']),
+  ]
 
   if (company || domain) {
     queries.push(

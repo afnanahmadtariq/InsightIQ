@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@insightiq/db'
 import { AccountContextService, type AuthenticatedSession } from '../auth/account-context.service'
 import type { CreateResearchRunDto } from './dto/create-research-run.dto'
@@ -8,6 +8,11 @@ export class ResearchRunsService {
   constructor(private readonly accounts: AccountContextService) {}
 
   async create(session: AuthenticatedSession, input: CreateResearchRunDto) {
+    if (![input.companyName, input.companyDomain, input.linkedinUrl, input.xHandle].some((value) => value?.trim())) {
+      throw new BadRequestException(
+        'Add at least one identity anchor: company, company domain, LinkedIn URL, or X handle',
+      )
+    }
     const membership = await this.accounts.assertActiveWorkspace(session)
     const organizationId = membership.organizationId
 

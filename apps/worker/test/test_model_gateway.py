@@ -96,7 +96,7 @@ class ModelGatewayConfigTest(unittest.TestCase):
             config = ModelGatewayConfig.from_env()
             self.assertEqual(config.api_key, 'secret')
             self.assertEqual(config.base_url, 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1')
-            self.assertEqual(config.model, 'qwen3-max')
+            self.assertEqual(config.model, 'qwen3.8-max')
 
 
 class RequestStructuredOutputTest(unittest.TestCase):
@@ -184,6 +184,7 @@ class RequestStructuredOutputTest(unittest.TestCase):
         )
         call = client.chat.completions.calls[0]
         self.assertEqual(call['response_format'], {'type': 'json_object'})
+        self.assertEqual(call['extra_body'], {'enable_thinking': False})
         messages = call['messages']
         self.assertEqual(messages[0]['role'], 'system')
         self.assertEqual(messages[0]['content'], 'system-prompt-text')
