@@ -22,7 +22,15 @@
     },
     "test": {
       "dependsOn": ["build", "^build"],
-      "env": ["DATABASE_URL"]
+      "env": [
+        "DATABASE_URL",
+        "E2E_API_PORT",
+        "E2E_SEED_SECRET",
+        "E2E_USE_REAL_STACK",
+        "E2E_WEB_PORT",
+        "PLAYWRIGHT_API_URL",
+        "PLAYWRIGHT_BASE_URL"
+      ]
     },
     "dev": {
       "dependsOn": ["^build"],
