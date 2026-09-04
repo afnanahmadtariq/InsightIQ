@@ -10,6 +10,7 @@ from insightiq_worker.graph_brief import build_brief_graph, new_id
 from insightiq_worker.graph_evidence import build_evidence_graph
 from insightiq_worker.llm import llm_enabled
 from insightiq_worker.models import RunContext, SourceBundle
+from insightiq_worker.stages import _assemble_langgraph_evidence
 from insightiq_worker.tavily import discover_sources, tavily_configured
 
 
@@ -77,16 +78,19 @@ def collect_public_profile(prospect_name: str, company_name: Optional[str], *, u
     evidence_result = build_evidence_graph().invoke(
         {'context': context, 'sources': bundles, 'drafts': [], 'prefer_crawl4ai': use_crawl4ai}
     )
+    sources = [{'id': bundle.source_id, 'publishedAt': None} for bundle in bundles]
+    bundle_by_id = {bundle.source_id: bundle for bundle in bundles}
+    reconciled = _assemble_langgraph_evidence(evidence_result['drafts'], sources)
     stored = [
         {
             'id': new_id(),
-            'claim': draft.claim,
-            'signal_type': draft.signal_type,
-            'confidence': draft.confidence,
-            'source_url': next(item.url for item in bundles if item.source_id == draft.source_id),
-            'source_title': next(item.title for item in bundles if item.source_id == draft.source_id),
+            'claim': row.claim,
+            'signal_type': row.signal_type,
+            'confidence': row.confidence,
+            'source_url': bundle_by_id[row.source_id].url,
+            'source_title': bundle_by_id[row.source_id].title,
         }
-        for draft in evidence_result['drafts']
+        for row in reconciled
     ]
     brief_result = build_brief_graph().invoke(
         {'context': context, 'evidence': stored, 'sections': None, 'error': None}

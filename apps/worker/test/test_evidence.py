@@ -13,6 +13,7 @@ from insightiq_worker.evidence import (
     _extract_numeric_tokens,
     _is_same_fact,
     _normalize_claim_text,
+    _prefer_observed_at,
     assemble_evidence_rows,
     build_extraction_prompt,
     reconcile_claims,
@@ -218,6 +219,18 @@ class ReconcileClaimsTest(unittest.TestCase):
         self.assertEqual(confidences['Acme raised $20M Series B'], 0.6)
         self.assertEqual(confidences['Acme raised $50M Series B'], 0.5)
 
+    def test_merge_prefers_non_null_observed_at(self):
+        claims_by_source = [
+            ('source-a', [_claim('Acme hired a VP of Sales', signal_type='hiring', confidence=0.6, observed_at=None)]),
+            (
+                'source-b',
+                [_claim('Acme hired a VP of Sales in Q3', signal_type='hiring', confidence=0.5, observed_at='2024-06-15')],
+            ),
+        ]
+        rows = reconcile_claims(claims_by_source)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].observed_at, '2024-06-15')
+
 
 class AssembleEvidenceRowsTest(unittest.TestCase):
     def test_spec2_claim_from_unresolvable_source_is_dropped(self):
@@ -239,6 +252,14 @@ class AssembleEvidenceRowsTest(unittest.TestCase):
         ]
         rows = assemble_evidence_rows(claims_by_source, resolvable_source_ids={'source-a', 'source-b'})
         self.assertEqual(len(rows), 2)
+
+
+class PreferObservedAtTest(unittest.TestCase):
+    def test_keeps_existing_when_set(self):
+        self.assertEqual(_prefer_observed_at('2024-01-01', '2024-06-15'), '2024-01-01')
+
+    def test_uses_incoming_when_existing_is_none(self):
+        self.assertEqual(_prefer_observed_at(None, '2024-06-15'), '2024-06-15')
 
 
 class EvidenceRowTest(unittest.TestCase):

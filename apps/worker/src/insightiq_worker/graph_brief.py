@@ -27,6 +27,10 @@ class BriefState(TypedDict):
     error: Optional[str]
 
 
+THIN_EVIDENCE_CLAIM_LIMIT = 2
+THIN_EVIDENCE_CONFIDENCE = 0.65
+
+
 def _signal_questions(context: RunContext, evidence: list[dict]) -> list[str]:
     company = context.company_name or 'your company'
     first = context.prospect_name.split()[0]
@@ -54,6 +58,12 @@ def assemble_sections(state: BriefState) -> BriefState:
     first = context.prospect_name.split()[0]
 
     if not ranked:
+        total = len(state['evidence'])
+        gap = (
+            f'{total} stored claim(s) failed relevance or quality filtering — none are citable in this brief.'
+            if total
+            else 'Try richer identifiers (company domain, LinkedIn URL) or rerun discovery through Tavily.'
+        )
         sections = BriefSections(
             summary=f'Public signals for {context.prospect_name} at {company} were thin after quality filtering.',
             key_signals=[],
@@ -63,7 +73,7 @@ def assemble_sections(state: BriefState) -> BriefState:
                 f'Where would {context.offer_name} need to prove value in the first 30 days?',
             ],
             outreach_draft=None,
-            gaps=['Try richer identifiers (company domain, LinkedIn URL) or rerun discovery through Tavily.'],
+            gaps=[gap],
         )
         return {**state, 'sections': sections, 'error': None}
 
@@ -102,6 +112,14 @@ def assemble_sections(state: BriefState) -> BriefState:
             f'We help teams like yours with {context.offer_name.lower()} — open to a short conversation?'
         )
 
+    gaps: list[str] = []
+    if len(ranked) <= THIN_EVIDENCE_CLAIM_LIMIT:
+        gaps.append(
+            f'Only {len(ranked)} verified public signal(s) cleared the relevance gate — treat conclusions as preliminary.'
+        )
+    elif all(float(item.get('confidence', 0.0)) < THIN_EVIDENCE_CONFIDENCE for item in ranked):
+        gaps.append('All cited signals are below the high-confidence threshold — verify before relying on them in outreach.')
+
     sections = BriefSections(
         summary=summary,
         key_signals=citations,
@@ -111,7 +129,7 @@ def assemble_sections(state: BriefState) -> BriefState:
         objection_handling=objections,
         next_steps=next_steps,
         outreach_draft=outreach,
-        gaps=[],
+        gaps=gaps,
     )
     return {**state, 'sections': sections, 'error': None}
 
@@ -129,10 +147,15 @@ def citation_gate(state: BriefState) -> BriefState:
     sections = state['sections']
     if sections is None:
         return {**state, 'error': 'brief sections missing'}
-    allowed = {item['id'] for item in state['evidence']}
+    evidence_by_id = {item['id']: item for item in state['evidence']}
     for citation in sections.key_signals:
-        if citation.evidence_id not in allowed:
+        stored = evidence_by_id.get(citation.evidence_id)
+        if stored is None:
             return {**state, 'error': f'unresolved evidence id: {citation.evidence_id}'}
+        if str(stored.get('source_url', '')) != citation.source_url:
+            return {**state, 'error': f'source_url mismatch for evidence id: {citation.evidence_id}'}
+        if str(stored.get('claim', '')) != citation.claim:
+            return {**state, 'error': f'claim mismatch for evidence id: {citation.evidence_id}'}
     try:
         BriefSections.model_validate(sections.model_dump())
     except ValidationError as error:

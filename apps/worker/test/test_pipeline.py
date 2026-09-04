@@ -133,6 +133,93 @@ class BriefGateTest(unittest.TestCase):
         gated = citation_gate({'context': context, 'evidence': evidence, 'sections': tampered, 'error': None})
         self.assertIn('unresolved evidence id', gated['error'] or '')
 
+    def test_rejects_tampered_source_url(self):
+        context = RunContext(
+            run_id='run',
+            organization_id='org',
+            goal='meeting',
+            created_by_id='user',
+            prospect_name='Jane Doe',
+            company_name='Acme',
+            offer_name='Platform',
+            value_proposition='Better conversations.',
+        )
+        evidence = [
+            {
+                'id': 'evidence-1',
+                'claim': 'Acme opened a new regional office.',
+                'signal_type': 'launch',
+                'confidence': 0.8,
+                'source_url': 'https://example.com/acme',
+                'source_title': 'Example',
+            }
+        ]
+        assembled = build_brief_graph().invoke({'context': context, 'evidence': evidence, 'sections': None, 'error': None})
+        sections = assembled['sections']
+        self.assertIsNotNone(sections)
+        tampered = sections.model_copy(
+            update={
+                'key_signals': [
+                    sections.key_signals[0].model_copy(update={'source_url': 'https://example.com/fake'})
+                ]
+            }
+        )
+        gated = citation_gate({'context': context, 'evidence': evidence, 'sections': tampered, 'error': None})
+        self.assertIn('source_url mismatch', gated['error'] or '')
+
+    def test_thin_evidence_populates_gaps(self):
+        context = RunContext(
+            run_id='run',
+            organization_id='org',
+            goal='meeting',
+            created_by_id='user',
+            prospect_name='Jane Doe',
+            company_name='Acme',
+            offer_name='Platform',
+            value_proposition='Better conversations.',
+        )
+        evidence = [
+            {
+                'id': new_id(),
+                'claim': 'Acme is hiring enterprise account executives in Austin.',
+                'signal_type': 'hiring',
+                'confidence': 0.82,
+                'source_url': 'https://example.com/acme',
+                'source_title': 'Example',
+            }
+        ]
+        result = build_brief_graph().invoke({'context': context, 'evidence': evidence, 'sections': None, 'error': None})
+        self.assertIsNone(result['error'])
+        sections = BriefSections.model_validate(result['sections'].model_dump())
+        self.assertTrue(any('preliminary' in gap.lower() for gap in sections.gaps))
+
+    def test_filtered_evidence_states_gap(self):
+        context = RunContext(
+            run_id='run',
+            organization_id='org',
+            goal='meeting',
+            created_by_id='user',
+            prospect_name='Jane Doe',
+            company_name='Acme',
+            offer_name='Platform',
+            value_proposition='Better conversations.',
+        )
+        evidence = [
+            {
+                'id': new_id(),
+                'claim': 'An apple is the round, edible fruit of an apple tree.',
+                'signal_type': 'other',
+                'confidence': 0.9,
+                'source_url': 'https://example.com/fruit',
+                'source_title': 'Fruit',
+            }
+        ]
+        result = build_brief_graph().invoke({'context': context, 'evidence': evidence, 'sections': None, 'error': None})
+        self.assertIsNone(result['error'])
+        sections = BriefSections.model_validate(result['sections'].model_dump())
+        self.assertEqual(sections.key_signals, [])
+        self.assertTrue(any('failed relevance' in gap.lower() for gap in sections.gaps))
+
     def test_generates_meeting_sections(self):
         context = RunContext(
             run_id='run',

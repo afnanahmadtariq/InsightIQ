@@ -82,6 +82,7 @@ class FakeConnection:
         sources_rows=None,
         existing_evidence_count=0,
         evidence_rows=None,
+        existing_brief_id=None,
         raise_on_sql=None,
         raise_error=None,
     ):
@@ -90,6 +91,7 @@ class FakeConnection:
         self.sources_rows = sources_rows if sources_rows is not None else []
         self.existing_evidence_count = existing_evidence_count
         self.evidence_rows = evidence_rows if evidence_rows is not None else []
+        self.existing_brief_id = existing_brief_id
         self.raise_on_sql = raise_on_sql
         self.raise_error = raise_error
         self.actions: list[tuple] = []
@@ -121,7 +123,7 @@ class FakeConnection:
         if 'SELECT COUNT(*)::int FROM evidence WHERE' in sql:
             return FakeCursor(fetchone_result=(self.existing_evidence_count,))
         if 'SELECT id FROM deal_brief WHERE' in sql:
-            return FakeCursor(fetchone_result=None)
+            return FakeCursor(fetchone_result=(self.existing_brief_id,) if self.existing_brief_id else None)
         if 'FROM evidence e' in sql and 'JOIN evidence_source s' in sql:
             return FakeCursor(fetchall_result=self.evidence_rows)
         if sql in (BACKOFF_SQL, FAIL_SQL, INSERT_EVIDENCE_SQL):
@@ -419,6 +421,14 @@ class LanggraphEvidenceAssemblyTest(unittest.TestCase):
         rows = _assemble_langgraph_evidence(drafts, sources)
         self.assertEqual(rows[0].observed_at, '2024-06-15')
 
+    def test_prefers_datetime_published_at(self):
+        drafts = [
+            EvidenceDraft(source_id='source-a', claim='Acme hired a VP of Sales', signal_type='hiring', confidence=0.6),
+        ]
+        sources = [{'id': 'source-a', 'publishedAt': datetime.datetime(2024, 6, 15, 14, 30)}]
+        rows = _assemble_langgraph_evidence(drafts, sources)
+        self.assertEqual(rows[0].observed_at, '2024-06-15')
+
 
 class EvidenceStageLanggraphPathTest(unittest.TestCase):
     LANGGRAPH_SOURCE_ROW = (
@@ -473,6 +483,23 @@ class BriefStageHappyPathTest(unittest.TestCase):
         executed = connection.executed_sql()
         self.assertTrue(any('INSERT INTO deal_brief' in sql for sql in executed))
         self.assertTrue(any('INSERT INTO notification' in sql for sql in executed))
+        self.assertTrue(any('"completedAt" = NOW()' in sql for sql in executed))
+
+    def test_brief_already_present_skips_insert_and_completes_run(self):
+        connection = FakeConnection(
+            claimed_row=CLAIMED_ROW,
+            counts_row=(2, 1, True),
+            evidence_rows=[EVIDENCE_ROW],
+            existing_brief_id='brief-existing',
+        )
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('DASHSCOPE_API_KEY', None)
+            brief_id = process_brief_stage(connection, RUN_ID, ORGANIZATION_ID)
+
+        self.assertEqual(brief_id, 'brief-existing')
+        executed = connection.executed_sql()
+        self.assertFalse(any('INSERT INTO deal_brief' in sql for sql in executed))
+        self.assertFalse(any('INSERT INTO notification' in sql for sql in executed))
         self.assertTrue(any('"completedAt" = NOW()' in sql for sql in executed))
 
 

@@ -61,6 +61,7 @@ services:
       TAVILY_SEARCH_DEPTH: ${TAVILY_SEARCH_DEPTH:-advanced}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       WORKER_LLM_MODEL: ${WORKER_LLM_MODEL:-gpt-4o-mini}
       WORKER_USE_CRAWL4AI: ${WORKER_USE_CRAWL4AI:-false}

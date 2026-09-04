@@ -129,6 +129,10 @@ def _boost_confidence(existing: float, new: float) -> float:
     return min(1.0, existing + new * (1.0 - existing))
 
 
+def _prefer_observed_at(existing: Optional[str], incoming: Optional[str]) -> Optional[str]:
+    return existing or incoming
+
+
 def reconcile_claims(claims_by_source: list[tuple[str, list[ExtractedClaim]]]) -> list[EvidenceRow]:
     rows: list[EvidenceRow] = []
     row_claims: list[ExtractedClaim] = []
@@ -156,7 +160,7 @@ def reconcile_claims(claims_by_source: list[tuple[str, list[ExtractedClaim]]]) -
                 claim=existing_row.claim,
                 signal_type=existing_row.signal_type,
                 confidence=_boost_confidence(existing_row.confidence, claim.confidence),
-                observed_at=existing_row.observed_at,
+                observed_at=_prefer_observed_at(existing_row.observed_at, claim.observedAt),
             )
     return rows
 
