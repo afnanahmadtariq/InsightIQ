@@ -88,6 +88,8 @@ test('API image generates Prisma Client before compiling the database package', 
   const generate = dockerfile.indexOf('npm run generate --workspace=@insightiq/db')
   const build = dockerfile.indexOf('npm run build --workspace=@insightiq/db')
   assert.ok(generate > 0 && build > generate)
+  assert.match(dockerfile, /ENTRYPOINT \["apps\/api\/docker-entrypoint\.sh"\]/)
+  assert.match(dockerfile, /CMD \["serve"\]/)
 })
 
 test('Cloudflare release installs its browser and validates an OpenNext artifact before deploy', () => {

@@ -30,4 +30,5 @@ COPY apps/api/docker-entrypoint.sh apps/api/docker-entrypoint.sh
 RUN chmod +x apps/api/docker-entrypoint.sh
 
 EXPOSE 3001
-CMD ["apps/api/docker-entrypoint.sh"]
+ENTRYPOINT ["apps/api/docker-entrypoint.sh"]
+CMD ["serve"]
