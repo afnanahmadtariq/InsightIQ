@@ -1,9 +1,8 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Module, Post } from '@nestjs/common'
+import { Controller, Get, Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { AllowAnonymous, AuthModule } from '@thallesp/nestjs-better-auth'
-import { db } from '@insightiq/db'
 import { resolve } from 'node:path'
 import { auth } from './auth/auth'
 import { InsightIQAuthModule } from './auth/insightiq-auth.module'
@@ -11,7 +10,6 @@ import { validateEnvironment } from './config/env.validation'
 import { E2eModule } from './e2e/e2e.module'
 import { ResearchModule } from './research/research.module'
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const e2eEnabled = process.env.E2E_ENABLED === 'true'
 
 @Controller()
@@ -20,28 +18,6 @@ class HealthController {
   @AllowAnonymous()
   health() {
     return { status: 'ok' }
-  }
-}
-
-@Controller('waitlist')
-class WaitlistController {
-  @Post()
-  @AllowAnonymous()
-  async join(@Body() body: { email?: unknown; name?: unknown }) {
-    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
-    const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 120) : ''
-
-    if (!emailPattern.test(email) || email.length > 254) {
-      throw new HttpException('Enter a valid email address.', HttpStatus.BAD_REQUEST)
-    }
-
-    await db.waitlistSignup.upsert({
-      where: { email },
-      update: name ? { name } : {},
-      create: { email, name: name || null },
-    })
-
-    return { joined: true }
   }
 }
 
@@ -65,7 +41,7 @@ class WaitlistController {
     ResearchModule,
     ...(e2eEnabled ? [E2eModule] : []),
   ],
-  controllers: [HealthController, WaitlistController],
+  controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

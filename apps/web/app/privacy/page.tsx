@@ -8,12 +8,12 @@ export const metadata: Metadata = {
 }
 
 export default function PrivacyPage() {
-  return <SiteShell title="Privacy Policy" lead="We collect only what we need to run InsightIQ, improve the product, and communicate with you." updated="September 3, 2026">
+  return <SiteShell title="Privacy Policy" lead="We collect only what we need to run InsightIQ, improve the product, and communicate with you." updated="September 5, 2026">
     <Section title="What we collect">
       <ul>
         <li>Account details you provide (name, email, password or OAuth identity).</li>
         <li>Workspace content you enter (prospects, offers, research inputs, briefs).</li>
-        <li>Waitlist and contact emails when you opt in.</li>
+        <li>Contact details you provide when you contact us or request product updates.</li>
         <li>Basic technical logs (IP, device/browser, timestamps) for security and reliability.</li>
       </ul>
     </Section>
@@ -21,7 +21,7 @@ export default function PrivacyPage() {
       <ul>
         <li>Provide and secure your account and workspace.</li>
         <li>Run research, store evidence, and generate Deal Briefs you request.</li>
-        <li>Send product updates you asked for (e.g. waitlist or account notices).</li>
+        <li>Send product updates, account notices, and service messages you requested.</li>
         <li>Detect abuse, debug issues, and improve the service.</li>
       </ul>
     </Section>

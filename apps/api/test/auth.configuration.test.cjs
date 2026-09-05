@@ -4,6 +4,7 @@ const { resolve } = require('node:path')
 const { test } = require('node:test')
 const { validateEnvironment } = require('../dist/config/env.validation.js')
 const { renderAuthEmail } = require('../dist/auth/auth-email.template.js')
+const { renderLaunchEmail } = require('../dist/launch/launch-email.template.js')
 
 const repositoryRoot = resolve(__dirname, '../../..')
 
@@ -69,4 +70,9 @@ test('authentication email is branded and escapes untrusted content', () => {
   assert.doesNotMatch(message.html, /<script>/)
   assert.match(message.html, /&lt;script&gt;/)
   assert.match(message.text, /http:\/\/localhost:3000/)
+
+  const launch = renderLaunchEmail({ name: '<Alex>', actionUrl: 'https://insightiq.example/sign-up?from=<launch>' })
+  assert.match(launch.subject, /InsightIQ is live/)
+  assert.doesNotMatch(launch.html, /<Alex>/)
+  assert.match(launch.html, /&lt;Alex&gt;/)
 })

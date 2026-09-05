@@ -16,8 +16,8 @@ export default function AboutPage() {
       <p>Built first for agency SDR teams and SaaS account executives who need timely context before outreach or meetings—without spending 10–30 minutes researching every prospect.</p>
     </Section>
     <Section title="Where we are">
-      <p>InsightIQ is in private beta. We’re shipping the research → evidence → brief loop first, then expanding integrations and workflows.</p>
-      <p><Link href="/#waitlist">Join the waitlist</Link> or <Link href="/contact">get in touch</Link>.</p>
+      <p>InsightIQ is live with the research → evidence → brief loop, and we’re continuing to expand integrations and workflows.</p>
+      <p><Link href="/sign-up">Create your workspace</Link> or <Link href="/contact">get in touch</Link>.</p>
     </Section>
   </SiteShell>
 }
