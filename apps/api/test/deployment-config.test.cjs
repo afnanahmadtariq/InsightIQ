@@ -27,8 +27,9 @@ test('API deployment migrates first and recreates nginx separately', () => {
   const migrate = apiWorkflow.indexOf('docker compose run --rm --no-deps api migrate')
   const backend = apiWorkflow.indexOf('docker compose up -d --no-build --no-deps --wait --wait-timeout 60 api')
   const nginx = apiWorkflow.indexOf('docker compose up -d --no-build --force-recreate --remove-orphans --wait --wait-timeout 60 nginx')
+  const launchEmail = apiWorkflow.indexOf('docker compose run --rm --no-deps api notify-waitlist-launch --send')
 
-  assert.ok(migrate > 0 && backend > migrate && nginx > backend)
+  assert.ok(migrate > 0 && backend > migrate && nginx > backend && launchEmail > nginx)
   assert.doesNotMatch(apiWorkflow, /force-recreate[^\n]*api/)
   assert.match(apiWorkflow, /--force-recreate[^\n]*nginx/)
 })

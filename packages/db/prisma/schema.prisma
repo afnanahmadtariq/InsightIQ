@@ -154,10 +154,12 @@ model Invitation {
 
 // Landing-page signups are leads, not authenticated identities.
 model WaitlistSignup {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id                String    @id @default(cuid())
+  name              String?
+  email             String    @unique
+  createdAt         DateTime  @default(now())
+  launchEmailSentAt DateTime?
+  launchEmailId     String?
 }
 
 model Prospect {

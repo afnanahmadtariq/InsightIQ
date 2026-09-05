@@ -7,7 +7,6 @@ import { FeatureCard, type LandingFeature } from '../components/landing/feature-
 import { LandingBrand } from '../components/landing/landing-brand'
 import { RevealObserver } from '../components/landing/reveal-observer'
 import { StepCard } from '../components/landing/step-card'
-import { WaitlistForm } from '../components/landing/waitlist-form'
 import { ButtonLink } from '../components/ui/button'
 
 const container = 'mx-auto w-[min(1160px,calc(100%_-_48px))] max-sm:w-[calc(100%_-_36px)]'
@@ -32,7 +31,7 @@ export default function Home() {
         <a className="transition-colors hover:text-brand max-sm:hidden" href="#how-it-works">How it works</a>
         <a className="transition-colors hover:text-brand max-sm:hidden" href="#features">Features</a>
         <Link className="transition-colors hover:text-brand max-sm:hidden" href="/sign-in">Sign in</Link>
-        <ButtonLink href="#waitlist" variant="secondary" size="xs" className="bg-white/80 text-brand! shadow-card">Join the waitlist</ButtonLink>
+        <ButtonLink href="/sign-up" variant="secondary" size="xs" className="bg-white/80 text-brand! shadow-card">Create account</ButtonLink>
       </div>
     </nav>
 
@@ -42,8 +41,8 @@ export default function Home() {
         <h1 className="m-0 max-w-[700px] text-[clamp(3.5rem,6vw,5.35rem)] leading-[.98] font-normal tracking-[-.06em] text-iq-900 max-sm:text-[clamp(3rem,14.5vw,4.35rem)]">Know why now.<br/><em className="text-brand-bright not-italic">Know what to say.</em></h1>
         <p className="mt-7 mb-8 max-w-[610px] text-[1.08rem] leading-relaxed text-iq-600 max-sm:text-base">Turn live public signals into a focused meeting brief or personalized outreach draft—with evidence one click away.</p>
         <div className="flex items-center gap-5 max-sm:items-start max-sm:flex-col max-sm:gap-3">
-          <ButtonLink href="#waitlist" size="md" className="min-w-[194px] justify-between"><span>Get early access</span><ArrowRight size={18}/></ButtonLink>
-          <span className="text-xs font-medium text-iq-500">Coming soon · Private beta</span>
+          <ButtonLink href="/sign-up" size="md" className="min-w-[194px] justify-between"><span>Start researching</span><ArrowRight size={18}/></ButtonLink>
+          <span className="text-xs font-medium text-iq-500">Available now · Create your workspace</span>
         </div>
         <div className="mt-9 flex flex-wrap items-center gap-2">
           <span className="mr-1 text-[.65rem] font-semibold tracking-wider text-iq-500 uppercase">Built for</span>
@@ -95,9 +94,9 @@ export default function Home() {
       </div>
     </section>
 
-    <section className="grid grid-cols-1 items-center gap-12 bg-iq-900 px-[max(24px,calc((100vw_-_1160px)/2))] py-20 lg:grid-cols-[1.05fr_.95fr] lg:gap-20 lg:py-24" id="waitlist">
-      <div data-reveal><Eyebrow inverse>Coming soon</Eyebrow><h2 className={`${sectionTitle} text-white`}>Be first to turn signals<br/>into conversations.</h2><p className="mt-6 mb-0 max-w-[520px] text-base leading-relaxed text-iq-300">Join the private beta waitlist. We’ll reach out when early access opens—no noise, just the signal.</p></div>
-      <WaitlistForm/>
+    <section className="grid grid-cols-1 items-center gap-12 bg-iq-900 px-[max(24px,calc((100vw_-_1160px)/2))] py-20 lg:grid-cols-[1.05fr_.95fr] lg:gap-20 lg:py-24" id="get-started">
+      <div data-reveal><Eyebrow inverse>Start now</Eyebrow><h2 className={`${sectionTitle} text-white`}>Turn signals into<br/>better conversations.</h2><p className="mt-6 mb-0 max-w-[520px] text-base leading-relaxed text-iq-300">Create your workspace, add a prospect and your offer, and get an evidence-backed brief for the conversation ahead.</p></div>
+      <div className="delay-one flex flex-col items-start gap-4 rounded-panel border border-white/15 bg-white/5 p-6 backdrop-blur-xl" data-reveal><ButtonLink href="/sign-up" size="md" className="w-full justify-between"><span>Create your workspace</span><ArrowRight size={18}/></ButtonLink><p className="m-0 text-sm text-iq-300">Already have an account? <Link className="font-semibold text-sky hover:underline" href="/sign-in">Sign in</Link></p></div>
     </section>
 
     <footer className={`${container} flex flex-wrap items-center justify-between gap-4 py-8 text-xs text-iq-500 max-sm:items-start max-sm:flex-col`}>

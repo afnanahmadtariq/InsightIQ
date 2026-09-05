@@ -49,8 +49,6 @@ npm test
 
 InsightIQ uses Better Auth with email verification, password reset, optional Google OAuth, optional two-factor authentication, secure sessions, and organization-backed workspaces. Every product query resolves the active membership before reading or writing tenant data.
 
-Landing-page signups stay in `WaitlistSignup` and are never treated as authenticated users; the unused scaffolded `User` table was dropped when the Better Auth identity tables were introduced.
-
 Production requires at least:
 
 - `BETTER_AUTH_SECRET`
@@ -101,4 +99,4 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The API deployment starts PostgreSQL, runs migrations as a one-off command, starts the backend without forced recreation, then recreates Nginx separately and verifies all services before pruning unused images.
+The API deployment starts PostgreSQL, runs migrations as a one-off command, starts the backend without forced recreation, then recreates Nginx separately and verifies all services. The launch release also sends the one-time account announcement to historical signups using per-recipient idempotency before pruning unused images.

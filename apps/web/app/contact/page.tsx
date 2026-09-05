@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 }
 
 export default function ContactPage() {
-  return <SiteShell title="Contact" lead="We’re a small team building InsightIQ in private beta. Reach out and we’ll get back as soon as we can.">
-    <Section title="Product & waitlist">
-      <p>Want early access? <Link href="/#waitlist">Join the waitlist</Link> on the homepage.</p>
+  return <SiteShell title="Contact" lead="We’re a small team building InsightIQ. Reach out and we’ll get back as soon as we can.">
+    <Section title="Product & support">
+      <p>Ready to begin? <Link href="/sign-up">Create your workspace</Link>. For product questions, contact us below.</p>
     </Section>
     <Section title="Email">
       <p>General, privacy, and support: <a href="mailto:hello@insightiq.app">hello@insightiq.app</a></p>
