@@ -52,8 +52,12 @@ test('profile email changes require a confirmation flow', () => {
   const authSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/auth.ts'), 'utf8')
 
   assert.match(authSource, /changeEmail:\s*\{\s*enabled:\s*true/)
+  assert.match(authSource, /updateEmailWithoutVerification:\s*false/)
   assert.match(authSource, /sendChangeEmailConfirmation/)
   assert.match(authSource, /kind:\s*'email-change'/)
+  const profileSource = readFileSync(resolve(repositoryRoot, 'apps/web/components/profile-details.tsx'), 'utf8')
+  assert.match(profileSource, /setEmail\(user\.email\)/)
+  assert.match(profileSource, /Your sign-in email remains/)
 })
 
 test('account deletion requires email confirmation and preserves shared workspace ownership', () => {

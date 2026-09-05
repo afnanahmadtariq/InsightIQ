@@ -42,7 +42,8 @@ export function ProfileDetails({ user, workspace }: { user: AccountContext['user
       if (nextEmail !== user.email.toLowerCase()) {
         const result = await authClient.changeEmail({ newEmail: nextEmail, callbackURL: webCallbackURL('/dashboard/profile') })
         if (result.error) throw new Error(errorMessage(result.error, 'That email change could not be requested.'))
-        setSuccess('Details saved. Confirm the email-change request from your current inbox, then verify the new email to complete it.')
+        setEmail(user.email)
+        setSuccess(`Email change requested for ${nextEmail}. Your sign-in email remains ${user.email} until you confirm the current inbox and then verify the new address.`)
       } else {
         setSuccess('Your details have been updated.')
       }
@@ -66,7 +67,7 @@ export function ProfileDetails({ user, workspace }: { user: AccountContext['user
         <div className="rounded-xl bg-iq-50 p-3.5"><dt className="text-[.67rem] tracking-[.08em] text-iq-500 uppercase">Workspace</dt><dd className="mt-1 mb-0 text-sm font-semibold text-iq-900">{workspace.name}</dd></div>
         <div className="rounded-xl bg-iq-50 p-3.5"><dt className="text-[.67rem] tracking-[.08em] text-iq-500 uppercase">Role</dt><dd className="mt-1 mb-0 text-sm font-semibold text-iq-900">{workspace.role === 'owner' ? 'Creator admin' : workspace.role.replace(/^./, (letter) => letter.toUpperCase())}</dd></div>
       </dl>
-      <div className="mt-5 border-t border-iq-100 pt-4"><Button type="button" variant="secondary" size="sm" onClick={() => { setEditing((value) => !value); setError(''); setSuccess('') }}><Pencil size={16}/>{editing ? 'Close details' : 'Change details'}</Button></div>
+      <div className="mt-5 border-t border-iq-100 pt-4"><Button type="button" variant="secondary" size="sm" onClick={() => { setEditing((value) => { if (!value) { setName(user.name); setEmail(user.email) } return !value }); setError(''); setSuccess('') }}><Pencil size={16}/>{editing ? 'Close details' : 'Change details'}</Button></div>
       {!editing && error && <div className="mt-4"><FormMessage tone="error">{error}</FormMessage></div>}
       {!editing && success && <div className="mt-4"><FormMessage tone="success">{success}</FormMessage></div>}
     </section>
@@ -78,7 +79,7 @@ export function ProfileDetails({ user, workspace }: { user: AccountContext['user
         <Field id="profile-email" name="email" type="email" label="Sign-in email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required/>
         {error && <FormMessage tone="error">{error}</FormMessage>}
         {success && <FormMessage tone="success">{success}</FormMessage>}
-        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save changes'}</Button><Button type="button" variant="ghost" onClick={() => setEditing(false)} disabled={pending}>Cancel</Button></div>
+        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save changes'}</Button><Button type="button" variant="ghost" onClick={() => { setName(user.name); setEmail(user.email); setEditing(false) }} disabled={pending}>Cancel</Button></div>
       </form>
     </section>}
   </div>
