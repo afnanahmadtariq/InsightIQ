@@ -4,7 +4,7 @@ import { ArrowRight, LockKeyhole, Mail, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
-import { authClient, webCallbackURL } from '../lib/auth-client'
+import { authClient, clearAuthReturn, rememberAuthReturn, webCallbackURL } from '../lib/auth-client'
 import { apiRequest } from '../lib/api-client'
 import { Button } from './ui/button'
 import { Field } from './ui/form-field'
@@ -21,7 +21,7 @@ function GoogleMark() {
   </svg>
 }
 
-export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
+export function AuthForm({ mode, callbackPath = '/auth/continue' }: { mode: 'sign-in' | 'sign-up'; callbackPath?: string }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
@@ -39,16 +39,18 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
     const email = String(form.get('email') || '').trim().toLowerCase()
     const password = String(form.get('password') || '')
     try {
+      rememberAuthReturn(callbackPath)
       if (mode === 'sign-up') {
-        const result = await authClient.signUp.email({ name: String(form.get('name') || '').trim(), email, password, callbackURL: webCallbackURL('/auth/continue') })
+        const result = await authClient.signUp.email({ name: String(form.get('name') || '').trim(), email, password, callbackURL: webCallbackURL(callbackPath) })
         if (result.error) throw new Error(result.error.message || 'Could not create your account')
         router.push(`/verify-email?email=${encodeURIComponent(email)}`)
         return
       }
-      const result = await authClient.signIn.email({ email, password, rememberMe: form.get('remember') === 'on', callbackURL: webCallbackURL('/auth/continue') })
+      const result = await authClient.signIn.email({ email, password, rememberMe: form.get('remember') === 'on', callbackURL: webCallbackURL(callbackPath) })
       if (result.error) throw new Error(result.error.message || 'Could not sign in')
       if ('twoFactorRedirect' in result.data && result.data.twoFactorRedirect) return
-      router.push('/auth/continue')
+      clearAuthReturn()
+      router.push(callbackPath)
       router.refresh()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to authenticate')
@@ -58,7 +60,8 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
 
   async function google() {
     setPending(true)
-    const result = await authClient.signIn.social({ provider: 'google', callbackURL: webCallbackURL('/auth/continue') })
+    rememberAuthReturn(callbackPath)
+    const result = await authClient.signIn.social({ provider: 'google', callbackURL: webCallbackURL(callbackPath) })
     if (result.error) { setError(result.error.message || 'Google sign-in failed'); setPending(false) }
   }
 

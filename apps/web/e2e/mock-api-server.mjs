@@ -9,7 +9,7 @@ const WEB_ORIGIN = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${proces
 const corsHeaders = {
   'Access-Control-Allow-Origin': WEB_ORIGIN,
   'Access-Control-Allow-Credentials': 'true',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
@@ -67,7 +67,8 @@ function userPayload() {
 function accountContext() {
   const workspace = { ...e2eFixtures.workspace, logo: null }
   return {
-    user: { ...userPayload(), hasPassword: true },
+    user: { ...userPayload(), authenticatorAppEnabled: false, hasPassword: true },
+    accountDeletion: { soleWorkspaceNames: [] },
     workspaces: [workspace],
     activeWorkspace: workspace,
     requirements: { requiresOnboarding: false, requiresWorkspaceSelection: false, requiresTwoFactorChallenge: false },
@@ -151,6 +152,20 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/account-context') {
       if (!ensureAuthenticated(req, res)) return
       return json(res, 200, accountContext())
+    }
+    if (req.method === 'GET' && pathname === '/workspace-settings') {
+      if (!ensureAuthenticated(req, res)) return
+      return json(res, 200, {
+        currentUserId: 'e2e-user-id',
+        workspace: { ...e2eFixtures.workspace, isAdmin: true },
+        members: [{
+          id: 'e2e-member-id',
+          role: 'owner',
+          joinedAt: new Date().toISOString(),
+          user: { id: 'e2e-user-id', name: e2eFixtures.user.name, email: e2eFixtures.user.email, image: null },
+        }],
+        invitations: [],
+      })
     }
     if (req.method === 'GET' && pathname === '/research-runs') {
       if (!ensureAuthenticated(req, res)) return

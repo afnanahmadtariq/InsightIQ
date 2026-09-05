@@ -1,9 +1,9 @@
 'use client'
 
 import * as Popover from '@radix-ui/react-popover'
-import { Bell, Building2, Check, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { Bell, Building2, Check, ChevronLeft, ChevronRight, Search, Settings, UserRound } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AccountContext } from '../lib/account-context'
 import { apiRequest } from '../lib/api-client'
 import type { InsightNotification } from '../lib/research'
@@ -34,7 +34,9 @@ export function DashboardShell({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [notificationItems, setNotificationItems] = useState(notifications)
+  const accountCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const initials = context.user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
   const unreadNotifications = notificationItems.filter((item) => !item.readAt).length
 
@@ -42,6 +44,10 @@ export function DashboardShell({
     queueMicrotask(() => {
       setCollapsed(window.localStorage.getItem('insightiq-sidebar-collapsed') === 'true')
     })
+  }, [])
+
+  useEffect(() => () => {
+    if (accountCloseTimer.current) clearTimeout(accountCloseTimer.current)
   }, [])
 
   function toggleSidebar() {
@@ -62,6 +68,16 @@ export function DashboardShell({
     })
   }
 
+  function openAccountMenu() {
+    if (accountCloseTimer.current) clearTimeout(accountCloseTimer.current)
+    setAccountMenuOpen(true)
+  }
+
+  function closeAccountMenuSoon() {
+    if (accountCloseTimer.current) clearTimeout(accountCloseTimer.current)
+    accountCloseTimer.current = setTimeout(() => setAccountMenuOpen(false), 180)
+  }
+
   return <div className={`grid min-h-screen bg-iq-50 bg-[radial-gradient(circle_at_92%_0%,#e7f5ff_0,transparent_26%)] transition-[grid-template-columns] duration-300 ease-fluid motion-reduce:transition-none ${collapsed ? 'grid-cols-[84px_minmax(0,1fr)] max-[900px]:grid-cols-1' : 'grid-cols-[252px_minmax(0,1fr)] max-[900px]:grid-cols-1'}`}>
     <aside className={`sticky top-0 z-5 flex h-screen flex-col border-r border-iq-200 bg-white/88 py-5 pt-[25px] backdrop-blur-2xl transition-[padding] duration-300 ease-fluid motion-reduce:transition-none max-[900px]:static max-[900px]:block max-[900px]:h-auto max-[900px]:w-full max-[900px]:border-r-0 max-[900px]:border-b max-[900px]:p-[18px] ${collapsed ? 'px-0' : 'px-[18px]'}`}>
       <div className={`relative flex min-h-9 items-center justify-between text-iq-900 max-[900px]:m-0 ${collapsed ? 'mb-6 w-full justify-center' : 'mx-2 mb-7'}`}>
@@ -71,18 +87,29 @@ export function DashboardShell({
         </Button>
       </div>
 
-      {!collapsed && <div className="mb-[23px] flex items-center gap-[11px] rounded-[14px] border border-iq-200 bg-iq-50 p-3 max-[900px]:hidden">
+      {!collapsed && <Link href="/dashboard/workspace" className="mb-[23px] flex items-center gap-[11px] rounded-[14px] border border-iq-200 bg-iq-50 p-3 text-inherit no-underline transition-[background-color,border-color,box-shadow] hover:border-iq-300 hover:bg-white hover:shadow-[0_8px_24px_rgba(18,52,111,.07)] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand/20" aria-label={`Open ${context.activeWorkspace.name} workspace settings`}>
         <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-iq-100 text-brand"><Building2 size={17}/></span>
         <div className="grid min-w-0 gap-0.5"><small className="text-[.67rem] tracking-[.07em] text-iq-500 uppercase">Workspace</small><strong className="truncate text-[.83rem] text-iq-900">{context.activeWorkspace.name}</strong></div>
-      </div>}
+      </Link>}
+      {collapsed && <Link href="/dashboard/workspace" className="mx-auto mb-[23px] grid size-10 place-items-center rounded-xl border border-iq-200 bg-iq-50 text-brand no-underline transition-colors hover:border-iq-300 hover:bg-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand/20" aria-label={`Open ${context.activeWorkspace.name} workspace settings`} title="Workspace settings"><Building2 size={18}/></Link>}
 
       <DashboardNav collapsed={collapsed}/>
 
-      <div className={`mt-auto flex shrink-0 flex-col gap-2.5 border-t border-iq-200 pt-[15px] max-[900px]:hidden ${collapsed ? 'w-full items-center px-0' : 'px-2'}`}>
-        <Link href="/dashboard/profile" className={`flex min-w-0 items-center gap-2.5 rounded-xl text-inherit no-underline transition-opacity hover:opacity-75 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand/20 ${collapsed ? 'justify-center' : ''}`} aria-label="Open profile and security settings" title={collapsed ? 'Profile' : undefined}>
-          <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-[linear-gradient(135deg,#dff3ff,#dce8ff)] text-[.72rem] font-[750] text-iq-900">{initials}</span>
-          {!collapsed && <div className="grid min-w-0 gap-0.5"><strong className="truncate text-[.8rem] text-iq-900">{context.user.name}</strong><small className="truncate text-[.69rem] text-iq-500">{context.user.email}</small></div>}
-        </Link>
+      <div className={`mt-auto flex shrink-0 flex-col gap-2.5 border-t border-iq-200 pt-[15px] max-[900px]:mt-5 max-[900px]:flex-row max-[900px]:items-center max-[900px]:justify-between ${collapsed ? 'w-full items-center px-0' : 'px-2'}`}>
+        <Popover.Root open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
+          <Popover.Trigger asChild>
+            <button type="button" onMouseEnter={openAccountMenu} onMouseLeave={closeAccountMenuSoon} onFocus={openAccountMenu} className={`flex min-w-0 items-center gap-2.5 rounded-[14px] border border-iq-200 bg-white px-2.5 py-2 text-left text-inherit transition-colors duration-200 hover:bg-iq-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand/20 motion-reduce:transition-none ${collapsed ? 'justify-center p-2' : ''}`} aria-label="Open account menu" aria-expanded={accountMenuOpen} title={collapsed ? 'Account menu' : undefined}>
+              <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-[linear-gradient(135deg,#dff3ff,#dce8ff)] text-[.72rem] font-[750] text-iq-900">{initials}</span>
+              {!collapsed && <span className="grid min-w-0 gap-0.5"><strong className="truncate text-[.8rem] text-iq-900">{context.user.name}</strong><small className="truncate text-[.69rem] text-iq-500">{context.user.email}</small></span>}
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content onMouseEnter={openAccountMenu} onMouseLeave={closeAccountMenuSoon} className="z-100 grid w-[218px] gap-1 rounded-[15px] border border-iq-200 bg-white p-1.5 shadow-[0_16px_40px_rgba(18,52,111,.14)]" side={collapsed ? 'right' : 'top'} align={collapsed ? 'center' : 'start'} sideOffset={10} aria-label="Account menu">
+              <Link href="/dashboard/profile" onClick={() => setAccountMenuOpen(false)} className="flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[.82rem] font-medium text-iq-800 no-underline transition-colors hover:bg-iq-50 hover:text-iq-950"><UserRound size={16} className="text-brand"/>Profile</Link>
+              <Link href="/dashboard/settings" onClick={() => setAccountMenuOpen(false)} className="flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[.82rem] font-medium text-iq-800 no-underline transition-colors hover:bg-iq-50 hover:text-iq-950"><Settings size={16} className="text-brand"/>Settings & security</Link>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
         <SignOutButton compact={collapsed}/>
       </div>
     </aside>
