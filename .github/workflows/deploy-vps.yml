@@ -218,6 +218,6 @@ jobs:
             test -n "$(docker compose ps -q --status running worker)"
             test -n "$(docker compose ps -q --status running nginx)"
             docker compose run --rm --no-deps api notify-waitlist-launch --send
-            docker image prune -af
+            docker image prune -af --filter "until=24h"
 
             echo "Production API deployment complete"
