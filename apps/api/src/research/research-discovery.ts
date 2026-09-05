@@ -72,7 +72,7 @@ function sourceMatchesIdentity(source: TavilySource, kind: string, prospect: Pro
     return exactProfileMatch || (personMatch && hasAnchor)
   }
 
-  if (kind === 'company-overview' || kind === 'recent-company-signals') return companyMatch
+  if (kind === 'company-overview' || kind === 'recent-company-signals' || kind === 'company-hiring') return companyMatch
   if (kind === 'wikipedia-fallback') return companyMatch || (personMatch && !prospect.companyName)
   return false
 }
@@ -107,6 +107,7 @@ export function buildDiscoveryQueries(prospect: ProspectDiscoveryInput): TavilyD
     queries.push(
       query('company-overview', 'general', [company, domain, 'products customers leadership company overview']),
       query('recent-company-signals', 'news', [company || domain, 'funding launch partnership hiring expansion'], 90),
+      query('company-hiring', 'news', [company || domain, 'hiring jobs open roles team expansion'], 60),
     )
   } else if (handle) {
     queries.push(query('recent-prospect-signals', 'general', [person, handle, 'recent interview article announcement']))

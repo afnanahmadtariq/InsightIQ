@@ -95,6 +95,7 @@ EVIDENCE_ROW = (
     0.9,
     'https://example.test/a',
     'Acme funding announcement',
+    datetime.date(2024, 1, 10),
 )
 
 
@@ -147,13 +148,21 @@ class FakeConnection:
             return FakeCursor(fetchone_result=RUN_CONTEXT_ROW)
         if 'SELECT COUNT(*)::int FROM evidence WHERE' in sql:
             return FakeCursor(fetchone_result=(self.existing_evidence_count,))
+        if 'SELECT id, status FROM deal_brief WHERE' in sql:
+            if self.existing_brief_id:
+                status = 'refreshing' if isinstance(self.existing_brief_id, tuple) else 'ready'
+                brief_id = self.existing_brief_id[0] if isinstance(self.existing_brief_id, tuple) else self.existing_brief_id
+                return FakeCursor(fetchone_result=(brief_id, status))
+            return FakeCursor(fetchone_result=None)
         if 'SELECT id FROM deal_brief WHERE' in sql:
             return FakeCursor(fetchone_result=(self.existing_brief_id,) if self.existing_brief_id else None)
         if 'FROM evidence e' in sql and 'JOIN evidence_source s' in sql:
             return FakeCursor(fetchall_result=self.evidence_rows)
+        if 'SELECT email, name FROM "user"' in sql:
+            return FakeCursor(fetchone_result=('user@example.test', 'Alex'))
         if sql in (BACKOFF_SQL, FAIL_SQL, INSERT_EVIDENCE_SQL):
             return FakeCursor()
-        if 'INSERT INTO deal_brief' in sql or 'INSERT INTO notification' in sql:
+        if 'INSERT INTO deal_brief' in sql or 'INSERT INTO notification' in sql or 'UPDATE deal_brief' in sql:
             return FakeCursor()
         if '"completedAt" = NOW()' in sql:
             return FakeCursor()

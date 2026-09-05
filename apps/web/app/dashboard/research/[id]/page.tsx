@@ -1,9 +1,11 @@
-import { ArrowLeft, ArrowUpRight, Check, CircleDashed, FileCheck2, Search, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Check, CircleDashed, FileCheck2, Search } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { ResearchRunActions } from '../../../../components/research-run-actions'
+import { ResearchRunLive } from '../../../../components/research-run-live'
 import { ResearchRunPoller } from '../../../../components/research-run-poller'
+import { SignalTimeline } from '../../../../components/signal-timeline'
 import { ButtonLink } from '../../../../components/ui/button'
 import { EmptyState } from '../../../../components/ui/empty-state'
 import { StatusBadge } from '../../../../components/ui/status-badge'
@@ -25,26 +27,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!run) notFound()
   const discoveryComplete = run.sources.length > 0
   const evidenceComplete = run.evidence.length > 0
+  const hasBrief = Boolean(run.brief)
   const showProgress = run.status !== 'completed' || !run.brief
 
   return <WorkspacePage>
-    <ResearchRunPoller status={run.status} hasBrief={Boolean(run.brief)}/>
+    <ResearchRunPoller status={run.status}/>
     <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Prospects</Link>
     <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting brief' : 'Outreach brief'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} · Positioning <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
 
-    {showProgress && <section className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 sm:grid-cols-2 lg:grid-cols-4">
-      <RunMetric label="Created" value={formatDate(run.requestedAt, { year: undefined })}/>
-      <RunMetric label="Public sources" value={run.sources.length}/>
-      <RunMetric label="Evidence claims" value={run.evidence.length}/>
-      <RunMetric label="Brief" value={run.brief ? run.brief.status : 'Pending'}/>
-    </section>}
-
-    {showProgress && <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[950px]:grid-cols-4" aria-label="Research workflow">
-      <WorkflowStep number="01" title="Input" description="Prospect and offer saved." complete icon={<Check size={16}/>}/>
-      <WorkflowStep number="02" title="Web research" description={discoveryComplete ? `${run.sources.length} sources found.` : 'Searching trusted public sources.'} complete={discoveryComplete} icon={discoveryComplete ? <Check size={16}/> : <Search size={16}/>}/>
-      <WorkflowStep number="03" title="Signal check" description={evidenceComplete ? `${run.evidence.length} claims verified.` : discoveryComplete ? 'Checking relevance and citations.' : 'Starts after web research.'} complete={evidenceComplete} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
-      <WorkflowStep number="04" title="Conversation brief" description={run.brief ? 'Ready to use.' : evidenceComplete ? 'Turning signals into recommendations.' : 'Built from verified signals.'} complete={Boolean(run.brief)} icon={run.brief ? <Check size={16}/> : <Sparkles size={16}/>}/>
-    </section>}
+    {showProgress && <ResearchRunLive status={run.status} discoveryComplete={discoveryComplete} evidenceComplete={evidenceComplete} hasBrief={hasBrief} sourceCount={run.sources.length} evidenceCount={run.evidence.length} evidence={run.evidence}/>}
 
     {run.status === 'queued' && <ResearchCallout icon={<Search size={19}/>} title="Ready for public-source discovery" body="Launch the current Tavily discovery stage. It searches profile, company, and recent-signal queries in parallel while keeping every returned URL traceable."><ResearchRunActions run={run}/></ResearchCallout>}
     {run.status === 'running' && !discoveryComplete && <ResearchCallout icon={<CircleDashed size={19}/>} title="Discovery is in progress" body="The request has been claimed. Refresh to inspect sources as soon as collection finishes."><ResearchRunActions run={run}/></ResearchCallout>}
@@ -52,6 +43,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     {run.status === 'running' && discoveryComplete && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Deal brief ready" body="Your cited brief is ready to review."><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
     {run.status === 'completed' && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Your conversation brief is ready" body={`${run.evidence.length} cited signal${run.evidence.length === 1 ? '' : 's'} shaped the recommended opener, questions, and next step.`}><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Use this brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
     {run.status === 'failed' && <ResearchCallout tone="error" icon={<CircleDashed size={19}/>} title="Discovery needs attention" body={run.errorMessage || 'The provider could not complete this run. Retry after checking the project integration.'}><ResearchRunActions run={run}/></ResearchCallout>}
+
+    {run.evidence.length > 0 && run.status === 'completed' && <SignalTimeline evidence={run.evidence}/>}
 
     <WorkspaceSplit>
       <div className="grid gap-7">
@@ -63,7 +56,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </WorkspaceSection>
 
         <WorkspaceSection title="Verified evidence" description="Normalized claims that retain a direct source citation.">
-          {run.evidence.length ? <div className="grid gap-[9px]">{run.evidence.map((item) => <article className="rounded-[14px] border border-iq-200 bg-white p-[18px]" key={item.id}><header className="flex items-center justify-between gap-3 text-[.7rem] font-[650] tracking-[.05em] text-brand uppercase"><span>{item.signalType}</span><strong className="text-[.68rem] text-success">{formatConfidence(item.confidence)}</strong></header><p className="my-3 text-[.87rem] leading-[1.6] text-iq-700">{item.claim}</p><a className="inline-flex items-center gap-[5px] text-[.74rem] font-[650] text-brand" href={item.source.url} target="_blank" rel="noreferrer">{item.source.title}<ArrowUpRight size={14}/></a></article>)}</div> : <EmptyState icon={<FileCheck2 size={20}/>} title={discoveryComplete ? 'Extracting verified claims' : 'Evidence follows discovery'} body={discoveryComplete ? 'The worker is reading collected sources and normalizing citable claims with confidence scores.' : 'Start discovery above. Claims appear here once the worker extracts them from collected sources.'}/>}
+          {run.evidence.length ? <div className="grid gap-[9px]">{run.evidence.map((item) => <article className="rounded-[14px] border border-iq-200 bg-white p-[18px]" id={`evidence-${item.id}`} key={item.id}><header className="flex items-center justify-between gap-3 text-[.7rem] font-[650] tracking-[.05em] text-brand uppercase"><span>{item.signalType}</span><strong className="text-[.68rem] text-success">{formatConfidence(item.confidence)}</strong></header><p className="my-3 text-[.87rem] leading-[1.6] text-iq-700">{item.claim}</p>{item.observedAt && <time className="mb-2 block text-[.66rem] text-iq-500">Observed {formatDate(item.observedAt, { year: undefined })}</time>}<a className="inline-flex items-center gap-[5px] text-[.74rem] font-[650] text-brand" href={item.source.url} target="_blank" rel="noreferrer">{item.source.title}<ArrowUpRight size={14}/></a></article>)}</div> : <EmptyState icon={<FileCheck2 size={20}/>} title={discoveryComplete ? 'Extracting verified claims' : 'Evidence follows discovery'} body={discoveryComplete ? 'The worker is reading collected sources and normalizing citable claims with confidence scores.' : 'Start discovery above. Claims appear here once the worker extracts them from collected sources.'}/>}
         </WorkspaceSection>
       </div>
 
@@ -77,14 +70,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </aside>
     </WorkspaceSplit>
   </WorkspacePage>
-}
-
-function RunMetric({ label, value }: { label: string; value: ReactNode }) {
-  return <div className="bg-white p-[18px]"><small className="mb-2 block text-[.68rem] tracking-wider text-iq-500 uppercase">{label}</small><strong className="text-sm text-iq-900 capitalize">{value}</strong></div>
-}
-
-function WorkflowStep({ number, title, description, complete, icon }: { number: string; title: string; description: string; complete: boolean; icon: ReactNode }) {
-  return <article className="flex min-h-[125px] gap-3 rounded-[15px] border border-iq-200 bg-white/70 p-4"><span className={`grid size-8 shrink-0 place-items-center rounded-[10px] ${complete ? 'bg-[#eaf8f1] text-success' : 'bg-[#f1f4f9] text-iq-500'}`}>{icon}</span><div><small className="text-[.62rem] tracking-wider text-iq-500">{number}</small><strong className="mt-1 mb-1 block text-sm text-iq-900">{title}</strong><p className="m-0 text-xs leading-normal text-iq-500">{description}</p></div></article>
 }
 
 function ContextRow({ label, value }: { label: string; value: string }) {

@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { ArrowUpDown, Search, Sparkles, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatDate } from '../lib/format'
+import { briefUrgencyLabel } from '../lib/brief'
 import type { ResearchRunSummary } from '../lib/research'
 import { Button } from './ui/button'
 import { EmptyState } from './ui/empty-state'
 import { StatusBadge } from './ui/status-badge'
+import { UrgencyBadge } from './urgency-badge'
 import { WorkspaceSection } from './workspace/workspace-page'
 import { ItemBody, ItemIcon, ItemMeta, WorkspaceList, WorkspaceListLink } from './workspace/workspace-list'
 
@@ -135,7 +137,7 @@ export function ProspectDirectory({ runs }: { runs: ResearchRunSummary[] }) {
       {visibleRuns.length ? <WorkspaceList>{visibleRuns.map((run) => <WorkspaceListLink href={run.brief ? `/dashboard/briefs/${run.brief.id}` : `/dashboard/research/${run.id}`} key={run.id}>
         <ItemIcon>{run.brief ? <Sparkles size={18}/> : <Search size={18}/>}</ItemIcon>
         <ItemBody heading="h2" title={<>{run.prospect.name}{run.prospect.companyName ? ` · ${run.prospect.companyName}` : ''}</>} description={<>{run.goal === 'meeting' ? 'Meeting brief' : 'Outreach draft'} · {run.offer.name} · {run._count?.evidence ?? 0} cited signals</>}/>
-        <ItemMeta><StatusBadge status={run.brief ? 'ready' : run.status}/><time>{run.brief ? 'Open brief' : formatDate(run.requestedAt, { year: undefined })}</time></ItemMeta>
+        <ItemMeta><div className="flex flex-col items-end gap-1.5"><StatusBadge status={run.brief ? 'ready' : run.status}/>{run.brief && <UrgencyBadge label={briefUrgencyLabel(run.brief.sections)}/>}</div><time>{run.brief ? 'Open brief' : formatDate(run.requestedAt, { year: undefined })}</time></ItemMeta>
       </WorkspaceListLink>)}</WorkspaceList> : <EmptyState
         icon={<Search size={20}/>}
         title="No matching prospects"

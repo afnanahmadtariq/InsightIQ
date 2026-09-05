@@ -96,8 +96,29 @@ function evidenceForRun(runId) {
     claim: e2eFixtures.citation.claim,
     signalType: e2eFixtures.citation.signalType,
     confidence: 0.91,
+    observedAt: new Date().toISOString(),
     source,
   }]
+}
+
+function briefSectionsForRun(run) {
+  const evidence = evidenceForRun(run.id)[0]
+  return {
+    summary: `${evidence.claim} Use this verified signal to test the prospect's current priority before positioning the offer.`,
+    personalized_opener: `${run.prospect.name.split(' ')[0]}, I noticed the latest signal at ${run.prospect.companyName}. How is that shaping priorities right now?`,
+    talking_points: ['Lead with the verified signal, then validate whether it maps to an active priority.'],
+    questions_to_ask: ['What changed recently that made this conversation worth having?'],
+    objection_handling: ['If timing is tight: agree on the event that would make this urgent.'],
+    next_steps: ['Confirm one priority and the right owner for a focused follow-up.'],
+    urgency_score: 0.72,
+    urgency_label: 'High urgency',
+    key_signals: [{
+      evidence_id: evidence.id,
+      claim: evidence.claim,
+      source_url: evidence.source.url,
+      signal_type: evidence.signalType,
+    }],
+  }
 }
 
 function runDetail(run, phase) {
@@ -118,6 +139,7 @@ function runDetail(run, phase) {
       title: `Deal brief · ${run.prospect.name}`,
       status: 'ready',
       updatedAt: new Date().toISOString(),
+      sections: briefSectionsForRun(run),
     } : null,
   }
 }
@@ -234,6 +256,16 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, runDetail(run, 'running'))
     }
 
+    if (req.method === 'POST' && pathname.startsWith('/research-runs/') && pathname.endsWith('/refresh')) {
+      if (!ensureAuthenticated(req, res)) return
+      const id = pathname.split('/')[2]
+      const run = state.runs.get(id)
+      if (!run) return json(res, 404, { message: 'Research run not found' })
+      if (run.status !== 'completed') return json(res, 409, { message: `Research run cannot be refreshed while ${run.status}` })
+      run.status = 'running'
+      return json(res, 200, runDetail(run, 'running'))
+    }
+
     if (req.method === 'GET' && pathname.startsWith('/research-runs/')) {
       if (!ensureAuthenticated(req, res)) return
       const id = pathname.split('/')[2]
@@ -258,14 +290,8 @@ const server = http.createServer(async (req, res) => {
         status: 'ready',
         generatedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        sections: {
-          summary: `${detail.evidence[0]?.claim || e2eFixtures.citation.claim} Use this verified signal to test the prospect's current priority before positioning the offer.`,
-          personalized_opener: `${run.prospect.name.split(' ')[0]}, I noticed the latest signal at ${run.prospect.companyName}. How is that shaping priorities right now?`,
-          talking_points: ['Lead with the verified signal, then validate whether it maps to an active priority.'],
-          questions_to_ask: ['What changed recently that made this conversation worth having?'],
-          objection_handling: ['If timing is tight: agree on the event that would make this urgent.'],
-          next_steps: ['Confirm one priority and the right owner for a focused follow-up.'],
-        },
+        sections: briefSectionsForRun(run),
+        previousSections: null,
         researchRun: {
           id: detail.id,
           goal: detail.goal,

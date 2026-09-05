@@ -19,7 +19,7 @@ SELECT
   (SELECT COUNT(*)::int FROM evidence e WHERE e."researchRunId" = r.id AND e."organizationId" = r."organizationId") AS evidence,
   EXISTS (
     SELECT 1 FROM deal_brief b
-    WHERE b."researchRunId" = r.id AND b."organizationId" = r."organizationId"
+    WHERE b."researchRunId" = r.id AND b."organizationId" = r."organizationId" AND b.status != 'refreshing'
   ) AS has_brief
 FROM research_run r
 WHERE r.id = %s

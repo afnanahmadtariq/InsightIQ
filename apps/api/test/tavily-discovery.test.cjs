@@ -20,10 +20,13 @@ test('prospect discovery creates focused bounded queries without private email d
     'prospect-profile',
     'company-overview',
     'recent-company-signals',
+    'company-hiring',
   ])
   assert.ok(queries.every((query) => query.query.length > 0 && query.query.length <= 400))
-  assert.equal(queries.at(-1).topic, 'news')
-  assert.equal(queries.at(-1).days, 90)
+  assert.equal(queries.at(-2).topic, 'news')
+  assert.equal(queries.at(-2).days, 90)
+  assert.equal(queries.at(-1).kind, 'company-hiring')
+  assert.equal(queries.at(-1).days, 60)
 })
 
 test('prospect discovery includes a supplied LinkedIn URL as an identity anchor', () => {

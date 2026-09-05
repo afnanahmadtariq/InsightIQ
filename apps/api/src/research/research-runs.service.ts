@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import { db } from '@insightiq/db'
+import { db, type Prisma } from '@insightiq/db'
 import { AccountContextService, type AuthenticatedSession } from '../auth/account-context.service'
 import type { CreateResearchRunDto } from './dto/create-research-run.dto'
 
@@ -78,7 +78,7 @@ export class ResearchRunsService {
         prospect: true,
         offer: true,
         _count: { select: { evidence: true, sources: true } },
-        brief: { select: { id: true, title: true, status: true, updatedAt: true } },
+        brief: { select: { id: true, title: true, status: true, updatedAt: true, sections: true } },
       },
       orderBy: { requestedAt: 'desc' },
       take: 100,
@@ -124,6 +124,50 @@ export class ResearchRunsService {
     return db.researchRun.findUnique({
       where: { id_organizationId: { id, organizationId } },
       include: { prospect: true, offer: true },
+    })
+  }
+
+  async refresh(session: AuthenticatedSession, id: string) {
+    const membership = await this.accounts.assertActiveWorkspace(session)
+    const organizationId = membership.organizationId
+    const run = await db.researchRun.findUnique({
+      where: { id_organizationId: { id, organizationId } },
+      include: { brief: true },
+    })
+    if (!run) throw new NotFoundException('Research run not found')
+    if (run.status !== 'completed') {
+      throw new ConflictException(`Research run cannot be refreshed while ${run.status}`)
+    }
+    if (!run.brief) throw new ConflictException('Research run has no brief to refresh')
+
+    await db.$transaction(async (transaction) => {
+      await transaction.dealBrief.update({
+        where: { id: run.brief!.id },
+        data: {
+          previousSections: run.brief!.sections as Prisma.InputJsonValue,
+          status: 'refreshing',
+        },
+      })
+      await transaction.researchRun.update({
+        where: { id_organizationId: { id, organizationId } },
+        data: {
+          status: 'running',
+          completedAt: null,
+          errorMessage: null,
+          lockedAt: null,
+          lockExpiresAt: null,
+          workerId: null,
+        },
+      })
+    })
+
+    return db.researchRun.findUnique({
+      where: { id_organizationId: { id, organizationId } },
+      include: {
+        prospect: true,
+        offer: true,
+        brief: true,
+      },
     })
   }
 }

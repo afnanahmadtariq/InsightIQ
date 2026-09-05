@@ -15,13 +15,19 @@ export interface ResearchRunSummary {
     xHandle?: string | null
   }
   offer: { name: string; valueProposition: string; targetPersona?: string | null }
-  brief?: { id: string; title: string; status: string; updatedAt: string } | null
+  brief?: {
+    id: string
+    title: string
+    status: string
+    updatedAt: string
+    sections?: unknown
+  } | null
   _count?: { evidence: number; sources: number }
 }
 
 export interface ResearchRunDetail extends ResearchRunSummary {
   sources: EvidenceSource[]
-  evidence: Array<{ id: string; claim: string; signalType: string; confidence: number; source: { title: string; url: string } }>
+  evidence: ResearchEvidenceItem[]
   brief?: DealBriefSummary | null
 }
 
@@ -34,6 +40,15 @@ export interface EvidenceSource {
   excerpt?: string | null
   publishedAt?: string | null
   retrievedAt: string
+}
+
+export interface ResearchEvidenceItem {
+  id: string
+  claim: string
+  signalType: string
+  confidence: number
+  observedAt?: string | null
+  source: { title: string; url: string; publisher?: string | null }
 }
 
 export interface EvidenceLibraryResponse {
@@ -68,6 +83,7 @@ export interface DealBriefSummary {
   status: string
   generatedAt?: string
   updatedAt: string
+  sections?: unknown
   researchRun?: {
     id: string
     goal: string
@@ -79,18 +95,13 @@ export interface DealBriefSummary {
 
 export interface DealBriefDetail extends Omit<DealBriefSummary, 'researchRun'> {
   sections: unknown
+  previousSections?: unknown | null
   researchRun: {
     id: string
     goal: 'outreach' | 'meeting'
     prospect: ResearchRunSummary['prospect']
     offer: ResearchRunSummary['offer']
-    evidence: Array<{
-      id: string
-      claim: string
-      signalType: string
-      confidence: number
-      source: EvidenceSource
-    }>
+    evidence: ResearchEvidenceItem[]
   }
 }
 

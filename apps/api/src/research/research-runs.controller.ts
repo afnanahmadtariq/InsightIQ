@@ -35,6 +35,12 @@ export class ResearchRunsController {
     return this.runs.retry(session, id)
   }
 
+  @Post(':id/refresh')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  refresh(@Session() session: AuthenticatedSession, @Param('id') id: string) {
+    return this.runs.refresh(session, id)
+  }
+
   @Get(':id')
   get(@Session() session: AuthenticatedSession, @Param('id') id: string) {
     return this.runs.get(session, id)
