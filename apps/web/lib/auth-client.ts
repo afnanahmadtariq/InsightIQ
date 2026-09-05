@@ -17,3 +17,20 @@ export const authClient = createAuthClient({
 export function webCallbackURL(path: string) {
   return new URL(path, window.location.origin).toString()
 }
+
+const authReturnKey = 'insightiq-auth-return'
+
+export function rememberAuthReturn(path: string) {
+  const safePath = path.startsWith('/') && !path.startsWith('//') ? path : '/auth/continue'
+  window.sessionStorage.setItem(authReturnKey, safePath)
+}
+
+export function consumeAuthReturn() {
+  const path = window.sessionStorage.getItem(authReturnKey)
+  window.sessionStorage.removeItem(authReturnKey)
+  return path?.startsWith('/') && !path.startsWith('//') ? path : '/auth/continue'
+}
+
+export function clearAuthReturn() {
+  window.sessionStorage.removeItem(authReturnKey)
+}

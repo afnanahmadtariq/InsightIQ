@@ -48,6 +48,80 @@ test('Better Auth account identity matches the 1.7 database contract', () => {
   assert.match(e2eSeedSource, /accountId: userId/)
 })
 
+test('profile email changes require a confirmation flow', () => {
+  const authSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/auth.ts'), 'utf8')
+
+  assert.match(authSource, /changeEmail:\s*\{\s*enabled:\s*true/)
+  assert.match(authSource, /updateEmailWithoutVerification:\s*false/)
+  assert.match(authSource, /sendChangeEmailConfirmation/)
+  assert.match(authSource, /kind:\s*'email-change'/)
+  const profileSource = readFileSync(resolve(repositoryRoot, 'apps/web/components/profile-details.tsx'), 'utf8')
+  assert.match(profileSource, /setEmail\(user\.email\)/)
+  assert.match(profileSource, /Your sign-in email remains/)
+})
+
+test('account deletion requires email confirmation and preserves shared workspace ownership', () => {
+  const authSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/auth.ts'), 'utf8')
+  const policySource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/account-deletion.policy.ts'), 'utf8')
+  const settingsSource = readFileSync(resolve(repositoryRoot, 'apps/web/components/security-settings.tsx'), 'utf8')
+
+  assert.match(authSource, /deleteUser:\s*\{\s*enabled:\s*true/)
+  assert.match(authSource, /sendDeleteAccountVerification/)
+  assert.match(authSource, /beforeDelete/)
+  assert.match(authSource, /tx\.organization\.deleteMany/)
+  assert.match(authSource, /successorPromotions/)
+  assert.match(authSource, /sharedWorkspaceSuccessors/)
+  assert.match(authSource, /tx\.invitation\.updateMany/)
+  assert.match(authSource, /role: 'admin'/)
+  assert.match(policySource, /successorPromotions/)
+  assert.match(policySource, /soleWorkspaceIds/)
+  assert.match(settingsSource, /authClient\.deleteUser/)
+  assert.match(settingsSource, /Type ' \+ user\.email \+ ' to confirm/)
+})
+
+test('social sign-in must confirm two-factor changes with a short-lived email code', () => {
+  const authSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/auth.ts'), 'utf8')
+  const contextSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/account-context.service.ts'), 'utf8')
+  const controllerSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/account-context.controller.ts'), 'utf8')
+  const settingsSource = readFileSync(resolve(repositoryRoot, 'apps/web/components/security-settings.tsx'), 'utf8')
+
+  assert.match(authSource, /security-change-approved:/)
+  assert.match(authSource, /SECURITY_CONFIRMATION_REQUIRED/)
+  assert.match(authSource, /two-factor\/enable/)
+  assert.match(authSource, /two-factor\/disable/)
+  assert.match(contextSource, /securityConfirmationLifetimeMs = 10 \* 60 \* 1000/)
+  assert.match(contextSource, /timingSafeEqual/)
+  assert.match(contextSource, /kind:\s*'security-change'/)
+  assert.match(controllerSource, /@Post\('security-confirmations'\)/)
+  assert.match(controllerSource, /@Post\('security-confirmations\/verify'\)/)
+  assert.match(settingsSource, /Date\.now\(\) \+ 60_000/)
+  assert.match(settingsSource, /Resend in \$\{/)
+})
+
+test('workspace deletion controls require admin confirmation and a transaction for a full wipe', () => {
+  const contextSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/workspace-settings.service.ts'), 'utf8')
+  const controllerSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/workspace-settings.controller.ts'), 'utf8')
+
+  assert.match(contextSource, /private async assertAdmin/)
+  assert.match(contextSource, /role === 'owner' \|\| role === 'admin'/)
+  assert.match(contextSource, /confirmation !== 'DELETE BRIEFS'/)
+  assert.match(contextSource, /db\.\$transaction/)
+  assert.match(contextSource, /confirmation !== membership\.organization\.name/)
+  assert.match(controllerSource, /@Delete\('briefs'\)/)
+  assert.match(controllerSource, /@Delete\('research-data'\)/)
+  assert.match(controllerSource, /@Delete\(\)/)
+})
+
+test('workspace invitations send users through a real acceptance flow', () => {
+  const authSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/auth.ts'), 'utf8')
+  const invitationPage = readFileSync(resolve(repositoryRoot, 'apps/web/components/invitation-acceptance.tsx'), 'utf8')
+
+  assert.match(authSource, /sendInvitationEmail/)
+  assert.match(authSource, /kind: 'workspace-invitation'/)
+  assert.match(authSource, /new URL\('\/invitation'/)
+  assert.match(invitationPage, /acceptInvitation/)
+})
+
 test('Tavily discovery settings are bounded and have useful defaults', () => {
   const environment = validateEnvironment({ NODE_ENV: 'development' })
   assert.equal(environment.TAVILY_SEARCH_DEPTH, 'advanced')

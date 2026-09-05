@@ -1,6 +1,6 @@
 'use client'
 
-import { House, Search, Sparkles, UserRound } from 'lucide-react'
+import { House, Search, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -8,7 +8,6 @@ const navigation = [
   { href: '/dashboard', label: 'Home', icon: House, exact: true },
   { href: '/dashboard/research', label: 'Prospects', icon: Search },
   { href: '/dashboard/briefs', label: 'Briefs', icon: Sparkles },
-  { href: '/dashboard/profile', label: 'Profile', icon: UserRound },
 ]
 
 export function DashboardNav({ collapsed = false }: { collapsed?: boolean }) {

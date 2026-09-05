@@ -1,4 +1,4 @@
-export type AuthEmailKind = 'verification' | 'password-reset' | 'two-factor'
+export type AuthEmailKind = 'verification' | 'password-reset' | 'two-factor' | 'email-change' | 'account-deletion' | 'security-change' | 'workspace-invitation'
 
 interface AuthEmailInput {
   kind: AuthEmailKind
