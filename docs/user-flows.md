@@ -1,9 +1,8 @@
 # InsightIQ user flows
 
 This document describes the product journey represented by the current routes
-and the boundary for the workers that come next. UI states must reflect stored
-data; unfinished stages are labelled `next` or `planned` rather than presented
-as generated results.
+and shipped worker pipeline. UI states reflect stored data, including distinct
+queued, running, refreshing, completed, and failed states.
 
 ## Primary research journey
 
@@ -13,7 +12,7 @@ flowchart LR
   B --> C[Dashboard]
   C --> D[New research run]
   D --> E[Queued run]
-  E -->|Collect public sources| F[Tavily discovery]
+  E -->|Automatic start or manual retry| F[Tavily discovery]
   F -->|Success| G[Source library]
   F -->|Failure| H[Failed run]
   H -->|Retry| E
@@ -21,6 +20,7 @@ flowchart LR
   I --> J[Deal brief synthesis]
   J --> K[Completion notification]
   K --> L[Review brief and citations]
+  L -->|Refresh| I
 ```
 
 ## Product routes
@@ -34,8 +34,13 @@ flowchart LR
 | `/dashboard/evidence` | Review sources separately from accepted claims | Cross-run source and evidence library |
 | `/dashboard/briefs` | Browse completed or draft outputs | Cross-run deal brief list |
 | `/dashboard/briefs/:id` | Use structured meeting or outreach sections with citations | One tenant-scoped brief and its run evidence |
-| `/dashboard/notifications` | See completion and attention events | Notifications belonging to the signed-in workspace member |
+| `/dashboard/profile` | Review or update personal identity details | Signed-in user profile; email changes require current-inbox confirmation |
+| `/dashboard/settings` | Manage 2FA and account deletion | Signed-in user security and account records |
+| `/dashboard/workspace` | Manage workspace identity, members, invitations, and data | Active workspace; destructive actions require admin access |
 | `/dashboard/integrations` | Understand operational and upcoming pipeline stages | Non-secret provider configuration and readiness |
+
+Completion and attention events appear in the dashboard notification popover;
+there is no dedicated notifications route.
 
 ## Research states
 
@@ -43,11 +48,12 @@ flowchart LR
 | --- | --- | --- |
 | `queued` | Inputs are preserved and the run is ready to be claimed | Start source discovery |
 | `running` with no sources | A discovery request has claimed the run | Refresh status |
-| `running` with sources | Discovery is complete; downstream processing remains | Inspect sources and build the evidence worker |
+| `running` with sources | Discovery is complete; evidence and brief processing remains | Inspect sources while the page polls automatically |
+| `running` with a `refreshing` brief | A completed brief is being synthesized again from stored evidence | Continue using the existing brief while the page polls automatically |
 | `failed` | Discovery stopped with a safe error message | Requeue and retry discovery |
 | `completed` | Evidence and a final brief have completed | Open the deal brief and citations |
 
-## Next worker contracts
+## Shipped worker contracts
 
 ### Evidence normalization
 
