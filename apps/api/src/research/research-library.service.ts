@@ -53,7 +53,13 @@ export class ResearchLibraryService {
     const membership = await this.accounts.assertActiveWorkspace(session)
     return db.dealBrief.findMany({
       where: { organizationId: membership.organizationId },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        generatedAt: true,
+        updatedAt: true,
+        sections: true,
         researchRun: {
           select: {
             id: true,

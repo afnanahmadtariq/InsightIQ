@@ -286,16 +286,17 @@ model Evidence {
 }
 
 model DealBrief {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  researchRunId  String
-  researchRun    ResearchRun  @relation(fields: [researchRunId, organizationId], references: [id, organizationId], onDelete: Cascade)
-  title          String
-  status         String       @default("draft")
-  sections       Json
-  generatedAt    DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  researchRunId     String
+  researchRun       ResearchRun  @relation(fields: [researchRunId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  title             String
+  status            String       @default("draft")
+  sections          Json
+  previousSections  Json?
+  generatedAt       DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@unique([researchRunId, organizationId])
   @@index([organizationId, updatedAt])

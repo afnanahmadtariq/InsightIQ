@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 from typing import Optional, TypedDict
 from uuid import uuid4
 
@@ -11,13 +12,14 @@ from insightiq_worker.llm import personalize_outreach_draft, polish_brief
 from insightiq_worker.models import BriefCitation, BriefSections, RunContext
 
 
-class StoredEvidence(TypedDict):
+class StoredEvidence(TypedDict, total=False):
     id: str
     claim: str
     signal_type: str
     confidence: float
     source_url: str
     source_title: str
+    observed_at: Optional[str]
 
 
 class BriefState(TypedDict):
@@ -38,6 +40,48 @@ def _buyer_outcome(context: RunContext) -> tuple[str, bool]:
     if vague:
         return f'the workflow {context.offer_name} is designed to improve', True
     return value, False
+
+
+def _parse_observed_at(value: Optional[str]) -> Optional[datetime.date]:
+    if not value:
+        return None
+    try:
+        return datetime.date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def _compute_urgency(evidence: list[dict]) -> tuple[float, str]:
+    if not evidence:
+        return 0.0, 'Low'
+
+    today = datetime.date.today()
+    recent_window = today - datetime.timedelta(days=30)
+    recent_news = 0
+    hiring_signals = 0
+    confidence_total = 0.0
+
+    for row in evidence:
+        confidence_total += float(row.get('confidence', 0.0))
+        signal_type = str(row.get('signal_type', 'other'))
+        if signal_type == 'hiring':
+            hiring_signals += 1
+        observed = _parse_observed_at(row.get('observed_at'))
+        if observed and observed >= recent_window:
+            recent_news += 1
+
+    avg_confidence = confidence_total / len(evidence)
+    score = min(
+        1.0,
+        (recent_news * 0.25) + (hiring_signals * 0.2) + (avg_confidence * 0.35) + (min(len(evidence), 5) * 0.04),
+    )
+    if score >= 0.65:
+        label = 'High urgency'
+    elif score >= 0.35:
+        label = 'Moderate'
+    else:
+        label = 'Low'
+    return round(score, 2), label
 
 
 def _signal_questions(context: RunContext, evidence: list[dict]) -> list[str]:
@@ -83,6 +127,8 @@ def assemble_sections(state: BriefState) -> BriefState:
             ],
             outreach_draft=None,
             gaps=[gap],
+            urgency_score=0.0,
+            urgency_label='Low',
         )
         return {**state, 'sections': sections, 'error': None}
 
@@ -139,6 +185,8 @@ def assemble_sections(state: BriefState) -> BriefState:
     elif all(float(item.get('confidence', 0.0)) < THIN_EVIDENCE_CONFIDENCE for item in ranked):
         gaps.append('All cited signals are below the high-confidence threshold — verify before relying on them in outreach.')
 
+    urgency_score, urgency_label = _compute_urgency(state['evidence'])
+
     sections = BriefSections(
         summary=summary,
         key_signals=citations,
@@ -149,6 +197,8 @@ def assemble_sections(state: BriefState) -> BriefState:
         next_steps=next_steps,
         outreach_draft=outreach,
         gaps=gaps,
+        urgency_score=urgency_score,
+        urgency_label=urgency_label,  # type: ignore[arg-type]
     )
     return {**state, 'sections': sections, 'error': None}
 

@@ -32,7 +32,10 @@ COUNTS_SQL = """
 SELECT
   (SELECT COUNT(*)::int FROM evidence_source WHERE "researchRunId" = %s AND "organizationId" = %s) AS sources,
   (SELECT COUNT(*)::int FROM evidence WHERE "researchRunId" = %s AND "organizationId" = %s) AS evidence,
-  EXISTS (SELECT 1 FROM deal_brief WHERE "researchRunId" = %s AND "organizationId" = %s) AS has_brief
+  EXISTS (
+    SELECT 1 FROM deal_brief
+    WHERE "researchRunId" = %s AND "organizationId" = %s AND status != 'refreshing'
+  ) AS has_brief
 """
 
 BACKOFF_SQL = """

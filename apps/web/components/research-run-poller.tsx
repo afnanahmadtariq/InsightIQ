@@ -3,14 +3,14 @@
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
-export function ResearchRunPoller({ status, hasBrief }: { status: string; hasBrief: boolean }) {
+export function ResearchRunPoller({ status }: { status: string; hasBrief?: boolean }) {
   const router = useRouter()
 
   useEffect(() => {
-    if (status !== 'running' || hasBrief) return undefined
+    if (status === 'completed' || status === 'failed') return undefined
     const timer = window.setInterval(() => router.refresh(), 5000)
     return () => window.clearInterval(timer)
-  }, [status, hasBrief, router])
+  }, [status, router])
 
   return null
 }

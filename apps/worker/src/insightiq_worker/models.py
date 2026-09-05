@@ -71,6 +71,8 @@ class BriefSections(BaseModel):
     next_steps: list[str] = Field(default_factory=list)
     outreach_draft: Optional[str] = None
     gaps: list[str] = Field(default_factory=list)
+    urgency_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    urgency_label: Literal['High urgency', 'Moderate', 'Low'] = 'Low'
 
 
 class RunContext(BaseModel):

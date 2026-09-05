@@ -1,32 +1,48 @@
+'use client'
+
 import { AlertTriangle, CircleHelp, Mail, MessageSquareQuote, ShieldCheck, Sparkles, Target } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { parseBriefSections, type BriefCitation } from '../lib/brief'
+import type { ResearchEvidenceItem } from '../lib/research'
 import { CopyButton } from './ui/copy-button'
 
-type BriefShape = {
-  summary?: unknown
-  talking_points?: unknown
-  questions_to_ask?: unknown
-  personalized_opener?: unknown
-  objection_handling?: unknown
-  next_steps?: unknown
-  outreach_draft?: unknown
-  gaps?: unknown
+function list(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : []
 }
 
 function text(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-function list(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : []
+function CitationChip({ citation, index }: { citation: BriefCitation; index: number }) {
+  function openEvidence(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    const target = document.getElementById(`evidence-${citation.evidence_id}`)
+    const disclosure = document.querySelector<HTMLDetailsElement>('[data-testid="evidence-disclosure"]')
+    if (disclosure && !disclosure.open) disclosure.open = true
+    target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  return <button type="button" onClick={openEvidence} className="inline-flex max-w-full items-center gap-1 rounded-full border border-brand/20 bg-[#f4faff] px-2.5 py-1 text-[.68rem] font-semibold text-brand transition hover:border-brand/40" title={citation.claim}>
+    <span className="text-[.62rem] text-iq-500">[{index + 1}]</span>
+    <span className="truncate capitalize">{citation.signal_type.replace(/-/g, ' ')}</span>
+  </button>
 }
 
-export function BriefSections({ sections, goal }: { sections: unknown; goal: 'meeting' | 'outreach' }) {
-  if (!sections || typeof sections !== 'object') {
+export function BriefSections({
+  sections,
+  goal,
+  evidence = [],
+}: {
+  sections: unknown
+  goal: 'meeting' | 'outreach'
+  evidence?: ResearchEvidenceItem[]
+}) {
+  const brief = parseBriefSections(sections)
+  if (!brief) {
     return <div className="rounded-[15px] border border-dashed border-iq-300 p-[30px] text-center text-iq-600">This brief is still being prepared.</div>
   }
 
-  const brief = sections as BriefShape
   const summary = text(brief.summary)
   const opener = text(brief.personalized_opener)
   const outreach = text(brief.outreach_draft)
@@ -35,6 +51,7 @@ export function BriefSections({ sections, goal }: { sections: unknown; goal: 'me
   const objections = list(brief.objection_handling)
   const nextSteps = list(brief.next_steps)
   const gaps = list(brief.gaps)
+  const citations = (brief.key_signals ?? []).filter((citation) => evidence.length === 0 || evidence.some((item) => item.id === citation.evidence_id))
 
   return <div className="grid gap-4">
     <section className="relative overflow-hidden rounded-[20px] bg-iq-950 p-7 text-white shadow-panel max-[620px]:p-5">
@@ -42,6 +59,7 @@ export function BriefSections({ sections, goal }: { sections: unknown; goal: 'me
       <div className="relative z-1">
         <p className="mt-0 mb-3 flex items-center gap-2 text-[.7rem] font-bold tracking-[.12em] text-sky uppercase"><Sparkles size={15}/>Why this conversation matters</p>
         <p className="m-0 max-w-[780px] text-[clamp(1.18rem,2vw,1.55rem)] leading-[1.5] tracking-[-.015em] text-white">{summary || 'No strong public signal cleared the evidence threshold yet.'}</p>
+        {citations.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{citations.map((citation, index) => <CitationChip citation={citation} index={index} key={citation.evidence_id}/>)}</div>}
         {opener && <div className="mt-6 rounded-2xl border border-white/12 bg-white/8 p-4">
           <div className="mb-2 flex items-center justify-between gap-3"><span className="text-[.68rem] font-bold tracking-[.1em] text-sky uppercase">Open with this</span><CopyButton value={opener} label="Copy opener"/></div>
           <blockquote className="m-0 text-sm leading-relaxed text-iq-100">“{opener}”</blockquote>

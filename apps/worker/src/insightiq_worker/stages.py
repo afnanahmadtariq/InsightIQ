@@ -9,6 +9,7 @@ from typing import Any, Callable, Optional, Union
 from insightiq_worker import evidence
 from insightiq_worker.graph_brief import build_brief_graph, new_id
 from insightiq_worker.graph_evidence import build_evidence_graph
+from insightiq_worker.email import send_brief_ready_email
 from insightiq_worker.model_gateway import ModelGatewayConfig, StructuredOutputError, build_client
 from insightiq_worker.models import EvidenceDraft, RunContext, SourceBundle
 from insightiq_worker.pipeline import FETCH_SOURCES_SQL, INSERT_EVIDENCE_SQL
@@ -44,7 +45,7 @@ ORDER BY "retrievedAt" ASC
 """
 
 LOAD_EVIDENCE_SQL = """
-SELECT e.id, e.claim, e."signalType", e.confidence, s.url, s.title
+SELECT e.id, e.claim, e."signalType", e.confidence, s.url, s.title, e."observedAt"
 FROM evidence e
 JOIN evidence_source s
   ON s.id = e."sourceId" AND s."organizationId" = e."organizationId"
@@ -52,10 +53,20 @@ WHERE e."researchRunId" = %s AND e."organizationId" = %s
 ORDER BY e.confidence DESC, e."createdAt" ASC
 """
 
+LOAD_USER_EMAIL_SQL = """
+SELECT email, name FROM "user" WHERE id = %s
+"""
+
 INSERT_BRIEF_SQL = """
 INSERT INTO deal_brief (
   id, "organizationId", "researchRunId", title, status, sections, "generatedAt", "updatedAt"
 ) VALUES (%s, %s, %s, %s, 'ready', %s::jsonb, NOW(), NOW())
+"""
+
+UPDATE_BRIEF_SQL = """
+UPDATE deal_brief
+SET title = %s, status = 'ready', sections = %s::jsonb, "updatedAt" = NOW()
+WHERE id = %s AND "organizationId" = %s
 """
 
 INSERT_NOTIFICATION_SQL = """
@@ -314,15 +325,25 @@ def process_evidence_stage(
     return _process_evidence_langgraph(connection, run_id, organization_id, context)
 
 
+def _format_observed_at(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, datetime.datetime):
+        return value.date().isoformat()
+    if isinstance(value, datetime.date):
+        return value.isoformat()
+    return str(value)[:10]
+
+
 def process_brief_stage(connection, run_id: str, organization_id: str) -> str:
     row = connection.execute(LOAD_RUN_SQL, (run_id, organization_id)).fetchone()
     if not row:
         raise RuntimeError('research run not found')
     existing = connection.execute(
-        'SELECT id FROM deal_brief WHERE "researchRunId" = %s AND "organizationId" = %s',
+        'SELECT id, status FROM deal_brief WHERE "researchRunId" = %s AND "organizationId" = %s',
         (run_id, organization_id),
     ).fetchone()
-    if existing:
+    if existing and existing[1] != 'refreshing':
         connection.execute(COMPLETE_RUN_SQL, (run_id, organization_id))
         log.info('brief stage skipped run_id=%s existing_brief_id=%s', run_id, existing[0])
         return str(existing[0])
@@ -339,8 +360,9 @@ def process_brief_stage(connection, run_id: str, organization_id: str) -> str:
             'confidence': confidence,
             'source_url': source_url,
             'source_title': source_title,
+            'observed_at': _format_observed_at(observed_at),
         }
-        for evidence_id, claim, signal_type, confidence, source_url, source_title in evidence_rows
+        for evidence_id, claim, signal_type, confidence, source_url, source_title, observed_at in evidence_rows
     ]
     result = build_brief_graph().invoke({'context': context, 'evidence': stored, 'sections': None, 'error': None})
     if result.get('error'):
@@ -349,24 +371,40 @@ def process_brief_stage(connection, run_id: str, organization_id: str) -> str:
     if sections is None:
         raise RuntimeError('brief synthesis returned no sections')
 
-    brief_id = new_id()
     title = f"Deal brief · {context.prospect_name}"
-    connection.execute(
-        INSERT_BRIEF_SQL,
-        (brief_id, organization_id, run_id, title, json.dumps(sections.model_dump())),
-    )
-    if context.created_by_id:
+    sections_json = json.dumps(sections.model_dump())
+    if existing and existing[1] == 'refreshing':
+        brief_id = str(existing[0])
+        connection.execute(UPDATE_BRIEF_SQL, (title, sections_json, brief_id, organization_id))
+    else:
+        brief_id = new_id()
         connection.execute(
-            INSERT_NOTIFICATION_SQL,
-            (
-                new_id(),
-                organization_id,
-                context.created_by_id,
-                run_id,
-                f'Brief ready for {context.prospect_name}',
-                f'{len(stored)} cited claim(s) are ready to review.',
-            ),
+            INSERT_BRIEF_SQL,
+            (brief_id, organization_id, run_id, title, sections_json),
         )
+        if context.created_by_id:
+            connection.execute(
+                INSERT_NOTIFICATION_SQL,
+                (
+                    new_id(),
+                    organization_id,
+                    context.created_by_id,
+                    run_id,
+                    f'Brief ready for {context.prospect_name}',
+                    f'{len(stored)} cited claim(s) are ready to review.',
+                ),
+            )
+            user_row = connection.execute(LOAD_USER_EMAIL_SQL, (context.created_by_id,)).fetchone()
+            if user_row and user_row[0]:
+                try:
+                    send_brief_ready_email(
+                        to=str(user_row[0]),
+                        prospect_name=context.prospect_name,
+                        brief_id=brief_id,
+                        recipient_name=str(user_row[1]) if user_row[1] else None,
+                    )
+                except Exception as error:
+                    log.warning('brief-ready email failed run_id=%s error=%s', run_id, str(error)[:500])
     connection.execute(COMPLETE_RUN_SQL, (run_id, organization_id))
     log.info('brief stage complete run_id=%s brief_id=%s', run_id, brief_id)
     return brief_id
