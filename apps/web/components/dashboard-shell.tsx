@@ -79,10 +79,10 @@ export function DashboardShell({
       <DashboardNav collapsed={collapsed}/>
 
       <div className={`mt-auto flex shrink-0 flex-col gap-2.5 border-t border-iq-200 pt-[15px] max-[900px]:hidden ${collapsed ? 'w-full items-center px-0' : 'px-2'}`}>
-        <div className={`flex min-w-0 items-center gap-2.5 ${collapsed ? 'justify-center' : ''}`}>
+        <Link href="/dashboard/profile" className={`flex min-w-0 items-center gap-2.5 rounded-xl text-inherit no-underline transition-opacity hover:opacity-75 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand/20 ${collapsed ? 'justify-center' : ''}`} aria-label="Open profile and security settings" title={collapsed ? 'Profile' : undefined}>
           <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-[linear-gradient(135deg,#dff3ff,#dce8ff)] text-[.72rem] font-[750] text-iq-900">{initials}</span>
           {!collapsed && <div className="grid min-w-0 gap-0.5"><strong className="truncate text-[.8rem] text-iq-900">{context.user.name}</strong><small className="truncate text-[.69rem] text-iq-500">{context.user.email}</small></div>}
-        </div>
+        </Link>
         <SignOutButton compact={collapsed}/>
       </div>
     </aside>
