@@ -10,6 +10,7 @@ const rootPackage = readFileSync(resolve(repositoryRoot, 'package.json'), 'utf8'
 const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
 const playwrightConfig = readFileSync(resolve(repositoryRoot, 'apps/web/playwright.config.ts'), 'utf8')
 const researchJourney = readFileSync(resolve(repositoryRoot, 'apps/web/e2e/research-journey.spec.ts'), 'utf8')
+const workerService = compose.slice(compose.indexOf('  worker:'), compose.indexOf('  nginx:'))
 
 test('API and Cloudflare workflows own their required PR verification and tag releases', () => {
   assert.match(apiWorkflow, /^name: Deploy production API/m)
@@ -57,6 +58,12 @@ test('production deployment builds, pulls, and starts the worker service', () =>
   assert.match(apiWorkflow, /docker compose pull api worker/)
   assert.match(apiWorkflow, /docker compose up -d --no-build --no-deps --wait --wait-timeout 60 api worker/)
   assert.match(apiWorkflow, /docker compose ps -q --status running worker/)
+})
+
+test('worker receives brief-ready email configuration', () => {
+  assert.match(workerService, /RESEND_API_KEY/)
+  assert.match(workerService, /RESEND_FROM_EMAIL/)
+  assert.match(workerService, /WEB_ORIGIN/)
 })
 
 test('production release verifies worker code and backend integration tests', () => {

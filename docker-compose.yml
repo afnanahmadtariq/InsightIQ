@@ -61,6 +61,9 @@ services:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
       DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen3.8-max}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-InsightIQ <onboarding@resend.dev>}
+      WEB_ORIGIN: https://${PRIMARY_DOMAIN:-insightiq.zerotools.online}
       WORKER_USE_CRAWL4AI: ${WORKER_USE_CRAWL4AI:-false}
     depends_on:
       postgres:

@@ -1,3 +1,4 @@
+import datetime
 import unittest
 
 from insightiq_worker.email import render_brief_ready_email
@@ -18,16 +19,17 @@ class BriefReadyEmailTest(unittest.TestCase):
 
 class UrgencyScoreTest(unittest.TestCase):
     def test_recent_hiring_signals_score_high(self):
+        today = datetime.date.today()
         score, label = _compute_urgency([
             {
                 'signal_type': 'hiring',
                 'confidence': 0.9,
-                'observed_at': '2026-08-20',
+                'observed_at': (today - datetime.timedelta(days=5)).isoformat(),
             },
             {
                 'signal_type': 'launch',
                 'confidence': 0.85,
-                'observed_at': '2026-08-15',
+                'observed_at': (today - datetime.timedelta(days=10)).isoformat(),
             },
         ])
         self.assertGreaterEqual(score, 0.65)
