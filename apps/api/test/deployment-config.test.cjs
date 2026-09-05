@@ -34,8 +34,8 @@ test('API deployment migrates first and recreates nginx separately', () => {
   assert.match(apiWorkflow, /--force-recreate[^\n]*nginx/)
 })
 
-test('unused images older than 24 hours are pruned after service health checks', () => {
-  const prune = apiWorkflow.indexOf('docker image prune -af --filter "until=24h"')
+test('unused images are pruned after service health checks without deleting volumes', () => {
+  const prune = apiWorkflow.indexOf('docker image prune -af')
   const finalHealth = apiWorkflow.lastIndexOf('docker compose ps -q --status running nginx')
   assert.ok(prune > finalHealth)
   assert.doesNotMatch(apiWorkflow, /docker (?:system|volume) prune/)
