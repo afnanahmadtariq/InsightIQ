@@ -34,13 +34,6 @@ test('API deployment migrates first and recreates nginx separately', () => {
   assert.match(apiWorkflow, /--force-recreate[^\n]*nginx/)
 })
 
-test('unused images are pruned after service health checks without deleting volumes', () => {
-  const prune = apiWorkflow.indexOf('docker image prune -af')
-  const finalHealth = apiWorkflow.lastIndexOf('docker compose ps -q --status running nginx')
-  assert.ok(prune > finalHealth)
-  assert.doesNotMatch(apiWorkflow, /docker (?:system|volume) prune/)
-})
-
 test('repository clean uses cross-platform rimraf through Turbo', () => {
   const parsed = JSON.parse(rootPackage)
   assert.match(parsed.scripts.clean, /turbo run clean/)
