@@ -103,8 +103,9 @@ function evidenceForRun(runId) {
 
 function briefSectionsForRun(run) {
   const evidence = evidenceForRun(run.id)[0]
+  const refreshNote = run.refreshVersion ? ' The refreshed brief confirms this remains the strongest available signal.' : ''
   return {
-    summary: `${evidence.claim} Use this verified signal to test the prospect's current priority before positioning the offer.`,
+    summary: `${evidence.claim} Use this verified signal to test the prospect's current priority before positioning the offer.${refreshNote}`,
     personalized_opener: `${run.prospect.name.split(' ')[0]}, I noticed the latest signal at ${run.prospect.companyName}. How is that shaping priorities right now?`,
     talking_points: ['Lead with the verified signal, then validate whether it maps to an active priority.'],
     questions_to_ask: ['What changed recently that made this conversation worth having?'],
@@ -122,6 +123,7 @@ function briefSectionsForRun(run) {
 }
 
 function runDetail(run, phase) {
+  const briefAvailable = phase === 'completed' || Boolean(run.refreshVersion)
   return {
     id: run.id,
     status: phase === 'completed' ? 'completed' : 'running',
@@ -134,10 +136,10 @@ function runDetail(run, phase) {
     offer: run.offer,
     sources: phase === 'queued' ? [] : [sourceForRun(run.id)],
     evidence: phase === 'completed' ? evidenceForRun(run.id) : [],
-    brief: phase === 'completed' ? {
+    brief: briefAvailable ? {
       id: `${run.id}-brief`,
       title: `Deal brief · ${run.prospect.name}`,
-      status: 'ready',
+      status: phase === 'completed' ? 'ready' : 'refreshing',
       updatedAt: new Date().toISOString(),
       sections: briefSectionsForRun(run),
     } : null,
@@ -250,6 +252,9 @@ const server = http.createServer(async (req, res) => {
           valueProposition: body.offerContext,
           targetPersona: body.targetPersona || null,
         },
+        refreshVersion: 0,
+        briefPolls: 0,
+        previousSections: null,
       }
       state.runs.set(id, run)
       state.pollCounts.set(id, 0)
@@ -262,6 +267,9 @@ const server = http.createServer(async (req, res) => {
       const run = state.runs.get(id)
       if (!run) return json(res, 404, { message: 'Research run not found' })
       if (run.status !== 'completed') return json(res, 409, { message: `Research run cannot be refreshed while ${run.status}` })
+      run.previousSections = briefSectionsForRun(run)
+      run.refreshVersion += 1
+      run.briefPolls = 0
       run.status = 'running'
       return json(res, 200, runDetail(run, 'running'))
     }
@@ -273,7 +281,7 @@ const server = http.createServer(async (req, res) => {
       if (!run) return json(res, 404, { message: 'Research run not found' })
       const polls = (state.pollCounts.get(id) || 0) + 1
       state.pollCounts.set(id, polls)
-      const phase = polls >= 1 ? 'completed' : 'running'
+      const phase = polls >= (run.refreshVersion ? 2 : 1) ? 'completed' : 'running'
       run.status = phase
       return json(res, 200, runDetail(run, phase))
     }
@@ -283,21 +291,26 @@ const server = http.createServer(async (req, res) => {
       const briefId = pathname.split('/')[2]
       const run = [...state.runs.values()].find((item) => `${item.id}-brief` === briefId)
       if (!run) return json(res, 404, { message: 'Deal brief not found' })
-      const detail = runDetail(run, 'completed')
+      if (run.status === 'running' && run.refreshVersion) {
+        run.briefPolls += 1
+        if (run.briefPolls >= 2) run.status = 'completed'
+      }
+      const briefStatus = run.status === 'running' ? 'refreshing' : 'ready'
+      const detail = runDetail(run, briefStatus === 'ready' ? 'completed' : 'running')
       return json(res, 200, {
         id: briefId,
         title: `Deal brief · ${run.prospect.name}`,
-        status: 'ready',
+        status: briefStatus,
         generatedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        sections: briefSectionsForRun(run),
-        previousSections: null,
+        sections: briefStatus === 'refreshing' ? run.previousSections : briefSectionsForRun(run),
+        previousSections: run.previousSections,
         researchRun: {
           id: detail.id,
           goal: detail.goal,
           prospect: detail.prospect,
           offer: detail.offer,
-          evidence: detail.evidence,
+          evidence: evidenceForRun(run.id),
         },
       })
     }

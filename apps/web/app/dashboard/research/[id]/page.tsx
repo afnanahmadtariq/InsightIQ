@@ -27,21 +27,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!run) notFound()
   const discoveryComplete = run.sources.length > 0
   const evidenceComplete = run.evidence.length > 0
-  const hasBrief = Boolean(run.brief)
-  const showProgress = run.status !== 'completed' || !run.brief
+  const briefStatus = run.brief?.status ?? null
+  const briefReady = briefStatus === 'ready'
+  const briefRefreshing = briefStatus === 'refreshing'
+  const showProgress = run.status !== 'completed' || !briefReady
 
   return <WorkspacePage>
     <ResearchRunPoller status={run.status}/>
     <Link className="inline-flex w-fit items-center gap-[7px] text-[.81rem] font-semibold text-iq-600 transition-colors duration-300 ease-fluid hover:text-brand motion-reduce:transition-none" href="/dashboard/research"><ArrowLeft size={15}/>Prospects</Link>
     <WorkspaceHeader eyebrow={run.goal === 'meeting' ? 'Meeting brief' : 'Outreach brief'} title={run.prospect.name} lead={<>{run.prospect.companyName || run.prospect.email || 'Prospect research'} · Positioning <strong>{run.offer.name}</strong>.</>} action={<StatusBadge status={run.status}/>}/>
 
-    {showProgress && <ResearchRunLive status={run.status} discoveryComplete={discoveryComplete} evidenceComplete={evidenceComplete} hasBrief={hasBrief} sourceCount={run.sources.length} evidenceCount={run.evidence.length} evidence={run.evidence}/>}
+    {showProgress && <ResearchRunLive status={run.status} discoveryComplete={discoveryComplete} evidenceComplete={evidenceComplete} briefStatus={briefStatus} sourceCount={run.sources.length} evidenceCount={run.evidence.length} evidence={run.evidence}/>}
 
     {run.status === 'queued' && <ResearchCallout icon={<Search size={19}/>} title="Ready for public-source discovery" body="Launch the current Tavily discovery stage. It searches profile, company, and recent-signal queries in parallel while keeping every returned URL traceable."><ResearchRunActions run={run}/></ResearchCallout>}
-    {run.status === 'running' && !discoveryComplete && <ResearchCallout icon={<CircleDashed size={19}/>} title="Discovery is in progress" body="The request has been claimed. Refresh to inspect sources as soon as collection finishes."><ResearchRunActions run={run}/></ResearchCallout>}
-    {run.status === 'running' && discoveryComplete && !run.brief && <ResearchCallout tone="success" icon={<CircleDashed size={19}/>} title="Worker is synthesizing your brief" body="Sources are collected. The Python worker is extracting citable claims and generating your deal brief — this page refreshes automatically."><ResearchRunActions run={run}/></ResearchCallout>}
-    {run.status === 'running' && discoveryComplete && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Deal brief ready" body="Your cited brief is ready to review."><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Open deal brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
-    {run.status === 'completed' && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Your conversation brief is ready" body={`${run.evidence.length} cited signal${run.evidence.length === 1 ? '' : 's'} shaped the recommended opener, questions, and next step.`}><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Use this brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
+    {run.status === 'running' && briefRefreshing && run.brief && <ResearchCallout icon={<CircleDashed size={19}/>} title="Refreshing your conversation brief" body="The worker is updating recommendations from the latest stored evidence. This page refreshes automatically."><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>View current brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
+    {run.status === 'running' && !briefRefreshing && !discoveryComplete && <ResearchCallout icon={<CircleDashed size={19}/>} title="Discovery is in progress" body="The request has been claimed. Refresh to inspect sources as soon as collection finishes."><ResearchRunActions run={run}/></ResearchCallout>}
+    {run.status === 'running' && !briefRefreshing && discoveryComplete && !briefReady && <ResearchCallout icon={<CircleDashed size={19}/>} title="Worker is synthesizing your brief" body="Sources are collected. The Python worker is extracting citable claims and generating your deal brief — this page refreshes automatically."><ResearchRunActions run={run}/></ResearchCallout>}
+    {run.status === 'completed' && briefReady && run.brief && <ResearchCallout tone="success" icon={<Check size={19}/>} title="Your conversation brief is ready" body={`${run.evidence.length} cited signal${run.evidence.length === 1 ? '' : 's'} shaped the recommended opener, questions, and next step.`}><ButtonLink href={`/dashboard/briefs/${run.brief.id}`}>Use this brief<ArrowUpRight size={16}/></ButtonLink></ResearchCallout>}
     {run.status === 'failed' && <ResearchCallout tone="error" icon={<CircleDashed size={19}/>} title="Discovery needs attention" body={run.errorMessage || 'The provider could not complete this run. Retry after checking the project integration.'}><ResearchRunActions run={run}/></ResearchCallout>}
 
     {run.evidence.length > 0 && run.status === 'completed' && <SignalTimeline evidence={run.evidence}/>}

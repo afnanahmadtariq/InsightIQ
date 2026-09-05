@@ -9,7 +9,7 @@ type LiveProps = {
   status: ResearchRunDetail['status']
   discoveryComplete: boolean
   evidenceComplete: boolean
-  hasBrief: boolean
+  briefStatus?: string | null
   sourceCount: number
   evidenceCount: number
   evidence: ResearchEvidenceItem[]
@@ -19,29 +19,54 @@ export function ResearchRunLive({
   status,
   discoveryComplete,
   evidenceComplete,
-  hasBrief,
+  briefStatus,
   sourceCount,
   evidenceCount,
   evidence,
 }: LiveProps) {
-  const showProgress = status !== 'completed' || !hasBrief
+  const briefReady = briefStatus === 'ready'
+  const briefRefreshing = briefStatus === 'refreshing'
+  const showProgress = status !== 'completed' || !briefReady
   if (!showProgress) return null
 
-  const activeStep = !discoveryComplete ? 2 : !evidenceComplete ? 3 : !hasBrief ? 4 : null
+  const activeStep = status === 'running' ? !discoveryComplete ? 2 : !evidenceComplete ? 3 : !briefReady ? 4 : null : null
+  const sourceDescription = discoveryComplete
+    ? `${sourceCount} sources found.`
+    : status === 'queued'
+      ? 'Ready when you start discovery.'
+      : status === 'failed'
+        ? 'No sources collected.'
+        : 'Searching trusted public sources.'
+  const evidenceDescription = evidenceComplete
+    ? `${evidenceCount} claims verified.`
+    : status === 'failed'
+      ? 'Waiting for a successful retry.'
+      : discoveryComplete
+        ? 'Checking relevance and citations.'
+        : 'Starts after web research.'
+  const briefDescription = briefRefreshing
+    ? 'Updating recommendations.'
+    : briefReady
+      ? 'Ready to use.'
+      : status === 'failed'
+        ? 'Waiting for a successful retry.'
+        : evidenceComplete
+          ? 'Turning signals into recommendations.'
+          : 'Built from verified signals.'
 
   return <>
     <section className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 sm:grid-cols-2 lg:grid-cols-4">
       <RunMetric label="Public sources" value={sourceCount}/>
       <RunMetric label="Evidence claims" value={evidenceCount}/>
-      <RunMetric label="Brief" value={hasBrief ? 'Ready' : 'Pending'}/>
+      <RunMetric label="Brief" value={briefRefreshing ? 'Refreshing' : briefReady ? 'Ready' : 'Pending'}/>
       <RunMetric label="Status" value={status}/>
     </section>
 
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[950px]:grid-cols-4" aria-label="Research workflow">
       <WorkflowStep number="01" title="Input" description="Prospect and offer saved." complete active={false} icon={<Check size={16}/>}/>
-      <WorkflowStep number="02" title="Web research" description={discoveryComplete ? `${sourceCount} sources found.` : 'Searching trusted public sources.'} complete={discoveryComplete} active={activeStep === 2} icon={discoveryComplete ? <Check size={16}/> : <Search size={16}/>}/>
-      <WorkflowStep number="03" title="Signal check" description={evidenceComplete ? `${evidenceCount} claims verified.` : discoveryComplete ? 'Checking relevance and citations.' : 'Starts after web research.'} complete={evidenceComplete} active={activeStep === 3} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
-      <WorkflowStep number="04" title="Conversation brief" description={hasBrief ? 'Ready to use.' : evidenceComplete ? 'Turning signals into recommendations.' : 'Built from verified signals.'} complete={hasBrief} active={activeStep === 4} icon={hasBrief ? <Check size={16}/> : <Sparkles size={16}/>}/>
+      <WorkflowStep number="02" title="Web research" description={sourceDescription} complete={discoveryComplete} active={activeStep === 2} icon={discoveryComplete ? <Check size={16}/> : <Search size={16}/>}/>
+      <WorkflowStep number="03" title="Signal check" description={evidenceDescription} complete={evidenceComplete} active={activeStep === 3} icon={evidenceComplete ? <Check size={16}/> : <FileCheck2 size={16}/>}/>
+      <WorkflowStep number="04" title="Conversation brief" description={briefDescription} complete={briefReady} active={activeStep === 4} icon={briefReady ? <Check size={16}/> : <Sparkles size={16}/>}/>
     </section>
 
     {status === 'running' && evidence.length > 0 && <section className="grid gap-2" aria-label="Live evidence preview">

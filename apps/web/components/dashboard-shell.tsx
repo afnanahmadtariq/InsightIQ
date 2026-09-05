@@ -95,10 +95,10 @@ export function DashboardShell({
 
       <DashboardNav collapsed={collapsed}/>
 
-      <div className={`mt-auto flex shrink-0 flex-col gap-2.5 border-t border-iq-200 pt-[15px] max-[900px]:mt-5 max-[900px]:flex-row max-[900px]:items-center max-[900px]:justify-between ${collapsed ? 'w-full items-center px-0' : 'px-2'}`}>
+      <div className={`mt-auto flex shrink-0 flex-col gap-2.5 border-t border-iq-200 pt-[15px] max-[900px]:mt-5 max-[900px]:grid max-[900px]:grid-cols-[minmax(0,1fr)_auto] max-[900px]:items-center ${collapsed ? 'w-full items-center px-0' : 'px-2'}`}>
         <Popover.Root open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
           <Popover.Trigger asChild>
-            <button type="button" onMouseEnter={openAccountMenu} onMouseLeave={closeAccountMenuSoon} onFocus={openAccountMenu} className={`flex min-w-0 items-center gap-2.5 rounded-[14px] border border-iq-200 bg-white px-2.5 py-2 text-left text-inherit transition-colors duration-200 hover:bg-iq-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand/20 motion-reduce:transition-none ${collapsed ? 'justify-center p-2' : ''}`} aria-label="Open account menu" aria-expanded={accountMenuOpen} title={collapsed ? 'Account menu' : undefined}>
+            <button type="button" onMouseEnter={openAccountMenu} onMouseLeave={closeAccountMenuSoon} onClick={(event) => { event.preventDefault(); openAccountMenu() }} className={`flex min-w-0 items-center gap-2.5 rounded-[14px] border border-iq-200 bg-white px-2.5 py-2 text-left text-inherit transition-colors duration-200 hover:bg-iq-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand/20 motion-reduce:transition-none max-[900px]:w-full ${collapsed ? 'justify-center p-2' : ''}`} aria-label="Open account menu" aria-expanded={accountMenuOpen} title={collapsed ? 'Account menu' : undefined}>
               <span className="grid size-[35px] shrink-0 place-items-center rounded-[11px] bg-[linear-gradient(135deg,#dff3ff,#dce8ff)] text-[.72rem] font-[750] text-iq-900">{initials}</span>
               {!collapsed && <span className="grid min-w-0 gap-0.5"><strong className="truncate text-[.8rem] text-iq-900">{context.user.name}</strong><small className="truncate text-[.69rem] text-iq-500">{context.user.email}</small></span>}
             </button>

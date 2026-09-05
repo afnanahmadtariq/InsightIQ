@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { BriefRefreshButton } from '../../../../components/brief-refresh-button'
 import { BriefSections } from '../../../../components/brief-sections'
 import { ConversationPackButton } from '../../../../components/conversation-pack'
+import { BriefStatusPoller } from '../../../../components/research-run-poller'
 import { SignalTimeline } from '../../../../components/signal-timeline'
 import { StatusBadge } from '../../../../components/ui/status-badge'
 import { UrgencyBadge } from '../../../../components/urgency-badge'
@@ -21,10 +22,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const prospect = brief.researchRun.prospect
   const goalLabel = brief.researchRun.goal === 'meeting' ? 'Meeting brief' : 'Outreach brief'
   const urgencyLabel = briefUrgencyLabel(brief.sections)
+  const statusLabel = brief.status === 'refreshing' ? 'Refreshing' : brief.status === 'ready' ? 'Ready' : brief.status.replace(/^./, (letter) => letter.toUpperCase())
 
   return <WorkspacePage>
+    <BriefStatusPoller status={brief.status}/>
     <Link className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-iq-600 hover:text-brand" href="/dashboard/briefs"><ArrowLeft size={15}/>All briefs</Link>
-    <WorkspaceHeader eyebrow={`${goalLabel} · Ready`} title={<>{prospect.name}{prospect.companyName ? ` at ${prospect.companyName}` : ''}</>} lead={<>Use the recommendations first. Open sources only when you need to verify or share the evidence.</>} action={<div className="flex flex-wrap items-center gap-2"><UrgencyBadge label={urgencyLabel}/><StatusBadge status={brief.status}/></div>}/>
+    <WorkspaceHeader eyebrow={`${goalLabel} · ${statusLabel}`} title={<>{prospect.name}{prospect.companyName ? ` at ${prospect.companyName}` : ''}</>} lead={brief.status === 'refreshing' ? <>Your existing brief remains available while InsightIQ updates its recommendations. This page refreshes automatically.</> : <>Use the recommendations first. Open sources only when you need to verify or share the evidence.</>} action={<div className="flex flex-wrap items-center gap-2"><UrgencyBadge label={urgencyLabel}/><StatusBadge status={brief.status}/></div>}/>
 
     <div className="flex flex-wrap items-center gap-2 text-xs text-iq-600">
       <MetaChip label="Offer" value={brief.researchRun.offer.name}/>
