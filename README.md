@@ -135,7 +135,7 @@ A compact set of materials for exploring and presenting the project:
 | Attachment | What's inside |
 | --- | --- |
 | [PowerPoint pitch](presentation/InsightIQ-pitch-enhanced.pptx) · [PDF pitch](supporting/InsightIQ-pitch.pdf) | Product story, desktop screenshots, workflow, architecture, and team |
-| [Narrated product demo](video/InsightIQ-demo.mp4) · [Captions](video/InsightIQ-captions.srt) | A 103-second, 1080p story with motion graphics, actual app captures, and ElevenLabs narration |
+| [Narrated product demo](video/InsightIQ-demo.mp4) · [Captions](video/InsightIQ-captions.srt) | A 78-second, 1080p story with an animated logo, actual app captures, conversational ElevenLabs narration, and original background music |
 | [Project overview](supporting/InsightIQ-overview.pdf) | A concise introduction to the idea and what we built |
 | [Architecture diagram](supporting/InsightIQ-architecture.png) | The system architecture shown above |
 | [Workflow diagram](supporting/InsightIQ-workflow.png) | From prospect context to a reviewable Deal Brief |
