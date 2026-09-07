@@ -85,7 +85,10 @@ test('sign-in, create research run, open cited brief', async ({ page, request })
   await expect(page.getByRole('button', { name: 'Copy public link' })).toBeVisible()
   await page.getByRole('button', { name: 'Revoke' }).click()
   const revokedShare = await request.get(`${apiURL}/shared/briefs/${share.token}`)
-  expect(revokedShare.status()).toBe(404)
+  expect(revokedShare.status()).toBe(410)
+
+  await page.goto(`/shared/briefs/${share.token}`)
+  await expect(page.getByRole('heading', { name: 'This shared brief is no longer available.' })).toBeVisible()
 
   await expect(page.getByRole('heading', { name: 'Connect the signal to your offer' })).toBeVisible()
   await expect(page.getByRole('tabpanel')).toContainText('Hypothesis to validate')

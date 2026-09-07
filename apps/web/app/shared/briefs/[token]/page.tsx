@@ -2,6 +2,7 @@ import { ArrowUpRight, FileCheck2, ShieldCheck } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { RevokedSharePage } from '../../../../components/error-page'
 import { BriefSections } from '../../../../components/brief-sections'
 import { ConversationPackButton } from '../../../../components/conversation-pack'
 import { SignalTimeline } from '../../../../components/signal-timeline'
@@ -21,15 +22,18 @@ type SharedBrief = DealBriefDetail & { sharedAt: string }
 
 async function getSharedBrief(token: string) {
   const response = await fetch(`${API_URL}/shared/briefs/${encodeURIComponent(token)}`, { cache: 'no-store' })
-  if (response.status === 404) return null
+  if (response.status === 404) return { status: 'missing' as const }
+  if (response.status === 410) return { status: 'revoked' as const }
   if (!response.ok) throw new Error('InsightIQ could not load this shared brief')
-  return response.json() as Promise<SharedBrief>
+  return { status: 'ready' as const, brief: await response.json() as SharedBrief }
 }
 
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const brief = await getSharedBrief(token)
-  if (!brief) notFound()
+  const result = await getSharedBrief(token)
+  if (result.status === 'revoked') return <RevokedSharePage/>
+  if (result.status === 'missing') notFound()
+  const brief = result.brief
 
   const citations = briefCitations(brief.sections, brief.researchRun.evidence)
   const citationIds = new Set(citations.map((item) => item.evidence_id))

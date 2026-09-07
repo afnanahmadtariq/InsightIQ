@@ -328,7 +328,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname.startsWith('/shared/briefs/')) {
       const token = pathname.split('/')[3]
       const share = state.shares.get(token)
-      if (!share || share.revoked) return json(res, 404, { message: 'Shared brief not found' })
+      if (!share) return json(res, 404, { message: 'Shared brief not found' })
+      if (share.revoked) return json(res, 410, { message: 'Shared brief link revoked' })
       const run = [...state.runs.values()].find((item) => `${item.id}-brief` === share.briefId)
       if (!run) return json(res, 404, { message: 'Shared brief not found' })
       const detail = runDetail(run, 'completed')

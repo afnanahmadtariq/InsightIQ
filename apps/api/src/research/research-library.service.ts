@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { GoneException, Injectable, NotFoundException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { db } from '@insightiq/db'
 import { randomBytes } from 'node:crypto'
@@ -140,8 +140,9 @@ export class ResearchLibraryService {
   async sharedBrief(token: string) {
     if (!/^[A-Za-z0-9_-]{32}$/.test(token)) throw new NotFoundException('Shared brief not found')
     const share = await db.briefShare.findFirst({
-      where: { token, revokedAt: null },
+      where: { token },
       select: {
+        revokedAt: true,
         createdAt: true,
         dealBrief: {
           select: {
@@ -175,6 +176,7 @@ export class ResearchLibraryService {
       },
     })
     if (!share) throw new NotFoundException('Shared brief not found')
+    if (share.revokedAt) throw new GoneException('Shared brief link revoked')
     return { ...share.dealBrief, sharedAt: share.createdAt }
   }
 
