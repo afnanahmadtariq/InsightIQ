@@ -1,0 +1,6 @@
+flowchart LR
+    A["Web dashboard<br/>Next.js"] <--> B["API and accounts<br/>NestJS"]
+    B <--> C["Data and job queue<br/>PostgreSQL"]
+    C <--> D["Research worker<br/>Python + LangGraph"]
+    B <--> E["Public discovery<br/>Tavily"]
+    D <--> F["AI inference<br/>Qwen<br/>DashScope"]
