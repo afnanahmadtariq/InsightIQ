@@ -120,6 +120,17 @@ export class ResearchLibraryService {
     return { id, read: true }
   }
 
+  async clearNotifications(session: AuthenticatedSession) {
+    const membership = await this.accounts.assertActiveWorkspace(session)
+    const result = await db.notification.deleteMany({
+      where: {
+        organizationId: membership.organizationId,
+        userId: session.user.id,
+      },
+    })
+    return { cleared: result.count }
+  }
+
   async capabilities(session: AuthenticatedSession) {
     await this.accounts.assertActiveWorkspace(session)
     const configured = Boolean(this.config.get<string>('TAVILY_API_KEY'))

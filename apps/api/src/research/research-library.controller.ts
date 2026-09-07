@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post } from '@nestjs/common'
+import { Controller, Delete, Get, Param, Post } from '@nestjs/common'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthenticatedSession } from '../auth/account-context.service'
 import { ResearchLibraryService } from './research-library.service'
@@ -30,6 +30,11 @@ export class ResearchLibraryController {
   @Post('notifications/:id/read')
   markNotificationRead(@Session() session: AuthenticatedSession, @Param('id') id: string) {
     return this.library.markNotificationRead(session, id)
+  }
+
+  @Delete('notifications')
+  clearNotifications(@Session() session: AuthenticatedSession) {
+    return this.library.clearNotifications(session)
   }
 
   @Get('integrations')

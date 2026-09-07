@@ -36,6 +36,8 @@ export function DashboardShell({
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [notificationItems, setNotificationItems] = useState(notifications)
+  const [clearingNotifications, setClearingNotifications] = useState(false)
+  const [notificationError, setNotificationError] = useState('')
   const accountCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const initials = context.user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
   const unreadNotifications = notificationItems.filter((item) => !item.readAt).length
@@ -66,6 +68,22 @@ export function DashboardShell({
     void apiRequest(`/notifications/${item.id}/read`, { method: 'POST', keepalive: true }).catch(() => {
       setNotificationItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, readAt: null } : entry))
     })
+  }
+
+  async function clearNotifications() {
+    if (!notificationItems.length || clearingNotifications) return
+    const previousItems = notificationItems
+    setClearingNotifications(true)
+    setNotificationError('')
+    setNotificationItems([])
+    try {
+      await apiRequest<{ cleared: number }>('/notifications', { method: 'DELETE' })
+    } catch {
+      setNotificationItems(previousItems)
+      setNotificationError('Could not clear notifications. Please try again.')
+    } finally {
+      setClearingNotifications(false)
+    }
   }
 
   function openAccountMenu() {
@@ -127,7 +145,8 @@ export function DashboardShell({
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content className="z-100 w-[min(370px,calc(100vw_-_40px))] overflow-hidden rounded-[15px] border border-iq-200 bg-white data-[state=open]:animate-notification-in" side="bottom" align="end" sideOffset={12} collisionPadding={20} aria-label="Notifications">
-                <header className="flex items-center justify-between border-b border-iq-200 px-4 py-[15px]"><div className="grid gap-[3px]"><strong className="text-[.88rem]">Notifications</strong><small className="text-[.68rem] tracking-normal text-iq-500 normal-case">{unreadNotifications ? `${unreadNotifications} unread` : 'You’re all caught up'}</small></div><Button type="button" variant="ghost" size="icon-sm" className="size-7! text-xl leading-none text-iq-500" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications">×</Button></header>
+                <header className="flex items-center justify-between gap-3 border-b border-iq-200 px-4 py-[15px]"><div className="grid gap-[3px]"><strong className="text-[.88rem]">Notifications</strong><small className="text-[.68rem] tracking-normal text-iq-500 normal-case">{unreadNotifications ? `${unreadNotifications} unread` : 'You’re all caught up'}</small></div><div className="flex items-center gap-1">{notificationItems.length > 0 && <Button type="button" variant="ghost" size="xs" className="min-h-7! px-2.5! text-[.72rem] text-danger" onClick={() => void clearNotifications()} disabled={clearingNotifications}>{clearingNotifications ? 'Clearing…' : 'Clear all'}</Button>}<Button type="button" variant="ghost" size="icon-sm" className="size-7! text-xl leading-none text-iq-500" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications">×</Button></div></header>
+                {notificationError && <p className="m-0 border-b border-danger/15 bg-[#fff7f8] px-4 py-2 text-[.72rem] text-danger" role="alert">{notificationError}</p>}
                 {notificationItems.length
                   ? <div className="grid max-h-[360px] overflow-auto">{notificationItems.slice(0, 5).map((item) => <NotificationEntry key={item.id} item={item} onSelect={() => selectNotification(item)}/>)}</div>
                   : <div className="grid justify-items-start gap-2.5 px-4 py-[22px] text-iq-500"><Bell className="text-brand" size={19}/><p className="m-0 max-w-[260px] text-[.78rem] leading-normal">No notifications yet. When research moves, you’ll see it here.</p></div>}
