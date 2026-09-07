@@ -1,0 +1,111 @@
+1
+00:00:00,070 --> 00:00:03,170
+Before a sales conversation, there is a familiar scramble.
+
+2
+00:00:03,495 --> 00:00:06,060
+Company news. A prospect's profile.
+
+3
+00:00:06,304 --> 00:00:07,709
+Notes about what you sell.
+
+4
+00:00:08,150 --> 00:00:11,088
+Plenty of information, but no clear place to start.
+
+5
+00:00:11,598 --> 00:00:15,406
+Insight IQ brings that preparation into one workspace.
+
+6
+00:00:15,790 --> 00:00:19,958
+Built for B2B sellers, agencies, and founders, it connects public
+
+7
+00:00:20,027 --> 00:00:23,348
+prospect research to the offer you actually want to discuss.
+
+8
+00:00:24,160 --> 00:00:26,366
+Start with a prospect and their company.
+
+9
+00:00:26,807 --> 00:00:28,978
+Describe the problem your product solves.
+
+10
+00:00:29,420 --> 00:00:32,879
+Then choose your goal: prepare for a meeting, or write
+
+11
+00:00:32,925 --> 00:00:37,871
+personalized outreach. Behind the scenes, Tavily discovers public sources.
+
+12
+00:00:38,312 --> 00:00:42,260
+A Python worker uses Qwen to extract claims, and LangGraph
+
+13
+00:00:42,306 --> 00:00:46,602
+assembles the brief. Citation checks connect key signals to stored
+
+14
+00:00:46,648 --> 00:00:50,155
+claims and source links. The result is a focused starting
+
+15
+00:00:50,213 --> 00:00:54,590
+point: a suggested opener, talking points, useful questions, and a
+
+16
+00:00:54,648 --> 00:00:58,502
+next step. Outreach gets its own draft, ready for your
+
+17
+00:00:58,549 --> 00:01:02,415
+review and edits. Open a citation to inspect the claim
+
+18
+00:01:02,484 --> 00:01:05,805
+and its source. Research gaps stay visible.
+
+19
+00:01:06,014 --> 00:01:08,835
+A source link makes a statement traceable; it does not
+
+20
+00:01:08,882 --> 00:01:12,643
+make every conclusion true. Your judgment stays part of the
+
+21
+00:01:12,678 --> 00:01:16,974
+process. Copy the complete brief for your CRM, or download
+
+22
+00:01:17,020 --> 00:01:19,249
+it with its citations and research gaps.
+
+23
+00:01:19,853 --> 00:01:23,591
+Revisit the workspace, refresh a brief from stored evidence, and
+
+24
+00:01:23,649 --> 00:01:28,061
+compare what changed. Insight IQ was built by Afnan Ahmad
+
+25
+00:01:28,108 --> 00:01:30,766
+Tariq, Danyal Rana, and Hassan.
+
+26
+00:01:31,463 --> 00:01:34,261
+Public context. A relevant starting point.
+
+27
+00:01:34,957 --> 00:01:38,301
+Evidence you can inspect. Explore the project, and prepare your
+
+28
+00:01:38,359 --> 00:01:40,449
+next conversation with Insight IQ.

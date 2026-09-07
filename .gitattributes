@@ -1,0 +1,4 @@
+# Keep generated presentation and video assets out of text diffs.
+*.pdf binary
+*.pptx binary
+*.mp4 binary
