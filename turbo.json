@@ -35,7 +35,23 @@
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "BETTER_AUTH_*",
+        "WEB_ORIGIN",
+        "NEXT_PUBLIC_*",
+        "LISTEN_HOST",
+        "PORT",
+        "GOOGLE_CLIENT_*",
+        "RESEND_*",
+        "TAVILY_*",
+        "DASHSCOPE_*",
+        "OPENAI_*",
+        "WORKER_*",
+        "E2E_*",
+        "DEMO_CAPTURE"
+      ]
     }
   }
 }

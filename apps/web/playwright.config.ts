@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 const webPort = Number(process.env.E2E_WEB_PORT || 3000)
 const apiPort = Number(process.env.E2E_API_PORT || 3001)
 const useRealStack = process.env.E2E_USE_REAL_STACK === 'true'
-const hostEnv = { HOSTNAME: '127.0.0.1' }
+const hostEnv = { HOSTNAME: '127.0.0.1', LISTEN_HOST: '127.0.0.1' }
 
 export default defineConfig({
   testDir: './e2e',
