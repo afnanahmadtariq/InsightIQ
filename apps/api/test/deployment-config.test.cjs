@@ -51,6 +51,14 @@ test('API deployment passes Tavily discovery configuration to the container', ()
   assert.match(compose, /TAVILY_MAX_RESULTS/)
 })
 
+test('API healthcheck matches the default dual-stack listener', () => {
+  const apiService = compose.slice(compose.indexOf('  api:'), compose.indexOf('  worker:'))
+  const apiMain = readFileSync(resolve(repositoryRoot, 'apps/api/src/main.ts'), 'utf8')
+  assert.match(apiService, /http:\/\/localhost:3001\/health/)
+  assert.match(apiMain, /app\.listen\(process\.env\.PORT \?\? 3001\)/)
+  assert.doesNotMatch(apiMain, /app\.listen\([^\n]+0\.0\.0\.0/)
+})
+
 test('production deployment builds, pulls, and starts the worker service', () => {
   assert.match(compose, /WORKER_IMAGE/)
   assert.match(apiWorkflow, /WORKER_IMAGE_NAME/)
