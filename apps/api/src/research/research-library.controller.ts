@@ -1,4 +1,5 @@
 import { Controller, Delete, Get, Param, Post } from '@nestjs/common'
+import { AllowAnonymous } from '@thallesp/nestjs-better-auth'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthenticatedSession } from '../auth/account-context.service'
 import { ResearchLibraryService } from './research-library.service'
@@ -20,6 +21,22 @@ export class ResearchLibraryController {
   @Get('deal-briefs/:id')
   brief(@Session() session: AuthenticatedSession, @Param('id') id: string) {
     return this.library.brief(session, id)
+  }
+
+  @Post('deal-briefs/:id/share')
+  shareBrief(@Session() session: AuthenticatedSession, @Param('id') id: string) {
+    return this.library.shareBrief(session, id)
+  }
+
+  @Delete('deal-briefs/:id/share')
+  revokeBriefShare(@Session() session: AuthenticatedSession, @Param('id') id: string) {
+    return this.library.revokeBriefShare(session, id)
+  }
+
+  @Get('shared/briefs/:token')
+  @AllowAnonymous()
+  sharedBrief(@Param('token') token: string) {
+    return this.library.sharedBrief(token)
   }
 
   @Get('notifications')

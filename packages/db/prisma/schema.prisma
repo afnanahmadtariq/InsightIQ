@@ -25,6 +25,7 @@ model User {
   createdOffers    Offer[]
   researchRuns     ResearchRun[]
   notifications    Notification[]
+  briefShares      BriefShare[]
 
   @@map("user")
 }
@@ -116,6 +117,7 @@ model Organization {
   evidenceItems   Evidence[]
   dealBriefs      DealBrief[]
   notifications   Notification[]
+  briefShares     BriefShare[]
 
   @@map("organization")
 }
@@ -297,10 +299,28 @@ model DealBrief {
   previousSections  Json?
   generatedAt       DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
+  share             BriefShare?
 
   @@unique([researchRunId, organizationId])
   @@index([organizationId, updatedAt])
   @@map("deal_brief")
+}
+
+model BriefShare {
+  id             String       @id @default(cuid())
+  token          String       @unique
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dealBriefId    String       @unique
+  dealBrief      DealBrief    @relation(fields: [dealBriefId], references: [id], onDelete: Cascade)
+  createdById    String?
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  revokedAt      DateTime?
+
+  @@index([organizationId, createdAt])
+  @@index([createdById])
+  @@map("brief_share")
 }
 
 model Notification {

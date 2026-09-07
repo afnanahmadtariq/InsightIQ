@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowUpRight, FileCheck2, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BriefRefreshButton } from '../../../../components/brief-refresh-button'
+import { BriefShareButton } from '../../../../components/brief-share-button'
 import { BriefSections } from '../../../../components/brief-sections'
 import { ConversationPackButton } from '../../../../components/conversation-pack'
 import { BriefStatusPoller } from '../../../../components/research-run-poller'
@@ -39,6 +40,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <MetaChip label="Cited signals" value={String(citedEvidence.length)}/>
       <MetaChip label="Updated" value={formatDate(brief.updatedAt)}/>
       <ConversationPackButton sections={exportSections} goal={brief.researchRun.goal}/>
+      <BriefShareButton briefId={brief.id} initialToken={brief.share?.revokedAt ? undefined : brief.share?.token}/>
     </div>
 
     <main className="grid gap-4">

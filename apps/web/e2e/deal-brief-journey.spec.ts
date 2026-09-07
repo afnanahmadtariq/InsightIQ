@@ -21,26 +21,6 @@ test('clear all removes every notification from the panel', async ({ page, reque
     { ...cookie, url: apiURL },
   ])
 
-  let clearRequested = false
-  await page.route('**/notifications', async (route) => {
-    const headers = {
-      'Access-Control-Allow-Origin': webURL,
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'GET,DELETE,OPTIONS',
-      'Content-Type': 'application/json',
-    }
-    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers })
-    if (route.request().method() === 'DELETE') {
-      clearRequested = true
-      return route.fulfill({ status: 200, headers, json: { cleared: 2 } })
-    }
-    return route.fulfill({ status: 200, headers, json: [
-      { id: 'notification-1', type: 'brief_ready', title: 'Brief ready', body: 'Your brief is ready to review.', readAt: null, createdAt: new Date().toISOString(), researchRun: null },
-      { id: 'notification-2', type: 'research_update', title: 'Research updated', body: 'New evidence was found.', readAt: new Date().toISOString(), createdAt: new Date().toISOString(), researchRun: null },
-    ] })
-  })
-
   await page.goto('/dashboard')
   await page.getByRole('button', { name: '1 unread notifications' }).click()
   await expect(page.getByRole('button', { name: 'Clear all' })).toBeVisible()
@@ -48,7 +28,6 @@ test('clear all removes every notification from the panel', async ({ page, reque
 
   await expect(page.getByText('No notifications yet.')).toBeVisible()
   await expect(page.getByRole('button', { name: '0 unread notifications' })).toBeVisible()
-  expect(clearRequested).toBeTruthy()
 })
 
 test('sign-in, create research run, open cited brief', async ({ page, request }) => {
@@ -89,6 +68,24 @@ test('sign-in, create research run, open cited brief', async ({ page, request })
 
   await page.getByRole('link', { name: 'Use this brief' }).first().click()
   await expect(page).toHaveURL(/\/dashboard\/briefs\/.+/)
+
+  const privateBriefUrl = page.url()
+  const briefId = privateBriefUrl.split('/').pop()
+  const shareResponsePromise = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/deal-briefs/${briefId}/share`))
+  await page.getByRole('button', { name: 'Share brief' }).click()
+  const shareResponse = await shareResponsePromise
+  expect(shareResponse.ok()).toBeTruthy()
+  const share = await shareResponse.json() as { token: string }
+
+  await page.goto(`/shared/briefs/${share.token}`)
+  await expect(page.getByText('Shared read-only brief')).toBeVisible()
+  await expect(page.getByRole('heading', { name: `${e2eFixtures.prospect.name} at ${e2eFixtures.prospect.companyName}` })).toBeVisible()
+
+  await page.goto(privateBriefUrl)
+  await expect(page.getByRole('button', { name: 'Copy public link' })).toBeVisible()
+  await page.getByRole('button', { name: 'Revoke' }).click()
+  const revokedShare = await request.get(`${apiURL}/shared/briefs/${share.token}`)
+  expect(revokedShare.status()).toBe(404)
 
   await expect(page.getByRole('heading', { name: 'Connect the signal to your offer' })).toBeVisible()
   await expect(page.getByRole('tabpanel')).toContainText('Hypothesis to validate')

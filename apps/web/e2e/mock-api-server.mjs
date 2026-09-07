@@ -13,7 +13,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
-const state = { sessions: new Map(), runs: new Map(), pollCounts: new Map() }
+const state = { sessions: new Map(), runs: new Map(), pollCounts: new Map(), shares: new Map() }
 
 function json(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json', ...corsHeaders, ...headers })
@@ -153,7 +153,13 @@ function runDetail(run, phase) {
 
 function createSession(activeOrganizationId = e2eFixtures.workspace.id) {
   const token = randomUUID()
-  state.sessions.set(token, { activeOrganizationId })
+  state.sessions.set(token, {
+    activeOrganizationId,
+    notifications: [
+      { id: randomUUID(), type: 'brief_ready', title: 'Brief ready', body: 'Your brief is ready to review.', readAt: null, createdAt: new Date().toISOString(), researchRun: null },
+      { id: randomUUID(), type: 'research_update', title: 'Research updated', body: 'New evidence was found.', readAt: new Date().toISOString(), createdAt: new Date().toISOString(), researchRun: null },
+    ],
+  })
   return token
 }
 
@@ -175,8 +181,16 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/health') return json(res, 200, { status: 'ok' })
     if (req.method === 'GET' && pathname === '/auth-config') return json(res, 200, { googleEnabled: false })
     if (req.method === 'GET' && pathname === '/notifications') {
-      if (!ensureAuthenticated(req, res)) return
-      return json(res, 200, [])
+      const session = ensureAuthenticated(req, res)
+      if (!session) return
+      return json(res, 200, session.notifications)
+    }
+    if (req.method === 'DELETE' && pathname === '/notifications') {
+      const session = ensureAuthenticated(req, res)
+      if (!session) return
+      const cleared = session.notifications.length
+      session.notifications = []
+      return json(res, 200, { cleared })
     }
     if (req.method === 'GET' && pathname === '/account-context') {
       if (!ensureAuthenticated(req, res)) return
@@ -291,7 +305,47 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, runDetail(run, phase))
     }
 
-    if (req.method === 'GET' && pathname.startsWith('/deal-briefs/')) {
+    if (req.method === 'POST' && /^\/deal-briefs\/[^/]+\/share$/.test(pathname)) {
+      if (!ensureAuthenticated(req, res)) return
+      const briefId = pathname.split('/')[2]
+      const run = [...state.runs.values()].find((item) => `${item.id}-brief` === briefId)
+      if (!run) return json(res, 404, { message: 'Deal brief not found' })
+      const existing = [...state.shares.entries()].find(([, value]) => value.briefId === briefId && !value.revoked)
+      if (existing) return json(res, 200, { token: existing[0] })
+      const token = randomUUID().replaceAll('-', '')
+      state.shares.set(token, { briefId, sharedAt: new Date().toISOString(), revoked: false })
+      return json(res, 201, { token })
+    }
+
+    if (req.method === 'DELETE' && /^\/deal-briefs\/[^/]+\/share$/.test(pathname)) {
+      if (!ensureAuthenticated(req, res)) return
+      const briefId = pathname.split('/')[2]
+      const share = [...state.shares.values()].find((value) => value.briefId === briefId && !value.revoked)
+      if (share) share.revoked = true
+      return json(res, 200, { revoked: Boolean(share) })
+    }
+
+    if (req.method === 'GET' && pathname.startsWith('/shared/briefs/')) {
+      const token = pathname.split('/')[3]
+      const share = state.shares.get(token)
+      if (!share || share.revoked) return json(res, 404, { message: 'Shared brief not found' })
+      const run = [...state.runs.values()].find((item) => `${item.id}-brief` === share.briefId)
+      if (!run) return json(res, 404, { message: 'Shared brief not found' })
+      const detail = runDetail(run, 'completed')
+      return json(res, 200, {
+        id: share.briefId,
+        title: `Deal brief · ${run.prospect.name}`,
+        status: 'ready',
+        generatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        sharedAt: share.sharedAt,
+        sections: briefSectionsForRun(run),
+        previousSections: run.previousSections,
+        researchRun: { id: detail.id, goal: detail.goal, prospect: detail.prospect, offer: detail.offer, evidence: evidenceForRun(run.id) },
+      })
+    }
+
+    if (req.method === 'GET' && /^\/deal-briefs\/[^/]+$/.test(pathname)) {
       if (!ensureAuthenticated(req, res)) return
       const briefId = pathname.split('/')[2]
       const run = [...state.runs.values()].find((item) => `${item.id}-brief` === briefId)
@@ -302,6 +356,7 @@ const server = http.createServer(async (req, res) => {
       }
       const briefStatus = run.status === 'running' ? 'refreshing' : 'ready'
       const detail = runDetail(run, briefStatus === 'ready' ? 'completed' : 'running')
+      const activeShare = [...state.shares.entries()].find(([, value]) => value.briefId === briefId && !value.revoked)
       return json(res, 200, {
         id: briefId,
         title: `Deal brief · ${run.prospect.name}`,
@@ -310,6 +365,7 @@ const server = http.createServer(async (req, res) => {
         updatedAt: new Date().toISOString(),
         sections: briefStatus === 'refreshing' ? run.previousSections : briefSectionsForRun(run),
         previousSections: run.previousSections,
+        share: activeShare ? { token: activeShare[0], createdAt: activeShare[1].sharedAt, revokedAt: null } : null,
         researchRun: {
           id: detail.id,
           goal: detail.goal,

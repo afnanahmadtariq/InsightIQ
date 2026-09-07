@@ -96,6 +96,7 @@ export interface DealBriefSummary {
 export interface DealBriefDetail extends Omit<DealBriefSummary, 'researchRun'> {
   sections: unknown
   previousSections?: unknown | null
+  share?: { token: string; createdAt: string; revokedAt?: string | null } | null
   researchRun: {
     id: string
     goal: 'outreach' | 'meeting'
