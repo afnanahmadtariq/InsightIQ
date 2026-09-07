@@ -137,7 +137,7 @@ def _claim_has_source_support(claim: str, source: dict) -> bool:
     if not claim_tokens:
         return False
     overlap = claim_tokens & _support_tokens(source_text)
-    return len(overlap) >= 2 and (len(overlap) / len(claim_tokens)) >= 0.35
+    return len(overlap) >= 2 and (len(overlap) / len(claim_tokens)) >= 0.60
 
 
 def filter_claims_for_source(
@@ -207,6 +207,7 @@ def _prefer_observed_at(existing: Optional[str], incoming: Optional[str]) -> Opt
 def reconcile_claims(claims_by_source: list[tuple[str, list[ExtractedClaim]]]) -> list[EvidenceRow]:
     rows: list[EvidenceRow] = []
     row_claims: list[ExtractedClaim] = []
+    corroborating_sources: list[set[str]] = []
     for source_id, claims in claims_by_source:
         for claim in claims:
             matched_index = next(
@@ -224,13 +225,17 @@ def reconcile_claims(claims_by_source: list[tuple[str, list[ExtractedClaim]]]) -
                     )
                 )
                 row_claims.append(claim)
+                corroborating_sources.append({source_id})
                 continue
             existing_row = rows[matched_index]
+            # Repeated extraction from the same source is not corroboration.
+            already_counted = source_id in corroborating_sources[matched_index]
+            corroborating_sources[matched_index].add(source_id)
             rows[matched_index] = EvidenceRow(
                 source_id=existing_row.source_id,
                 claim=existing_row.claim,
                 signal_type=existing_row.signal_type,
-                confidence=_boost_confidence(existing_row.confidence, claim.confidence),
+                confidence=(existing_row.confidence if already_counted else _boost_confidence(existing_row.confidence, claim.confidence)),
                 observed_at=_prefer_observed_at(existing_row.observed_at, claim.observedAt),
             )
     return rows

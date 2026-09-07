@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal
 from typing import Iterable, Mapping, Optional
 
 from insightiq_worker.models import ExtractedClaim, RunContext, SignalType
@@ -42,6 +43,9 @@ KEYWORDS: dict[SignalType, tuple[str, ...]] = {
     'partnership': (' partnership ', ' partnered with', ' collaboration with', ' strategic alliance'),
     'role-context': (' focuses on', ' responsible for', ' leads ', ' oversees ', ' based in'),
 }
+COMPANY_SUFFIXES = {'inc', 'incorporated', 'llc', 'ltd', 'limited', 'corp', 'corporation', 'company', 'group', 'technologies', 'solutions'}
+OFFER_STOP_WORDS = {'with', 'that', 'this', 'your', 'their', 'from', 'have', 'help', 'helps', 'improve', 'improves', 'platform', 'solution', 'software', 'using', 'through', 'better', 'more', 'reduce', 'reduces', 'teams', 'company'}
+
 SIGNAL_WEIGHT = {
     'leadership': 0.25,
     'hiring': 0.2,
@@ -76,12 +80,18 @@ def prospect_tokens(prospect_name: str) -> set[str]:
 def company_tokens(company_name: Optional[str]) -> set[str]:
     if not company_name:
         return set()
-    cleaned = company_name.strip().lower()
-    tokens = {cleaned} if len(cleaned) >= 4 else set()
-    for part in re.split(r'[\s,.]+', cleaned):
-        if len(part) >= 4:
-            tokens.add(part)
-    return tokens
+    parts = re.findall(r'[\w]+', company_name.casefold())
+    distinctive = [part for part in parts if part not in COMPANY_SUFFIXES]
+    # Match the company name as a phrase, never an arbitrary component of a
+    # multi-word brand or a legal suffix shared by unrelated businesses.
+    name = ' '.join(distinctive) or ' '.join(parts)
+    return {name} if name else set()
+
+
+def _contains_identity(text: str, identity: str) -> bool:
+    normalized = ' '.join(re.findall(r'[\w]+', text.casefold()))
+    identity = ' '.join(re.findall(r'[\w]+', identity.casefold()))
+    return bool(identity and re.search(r'(?<!\w)' + re.escape(identity) + r'(?!\w)', normalized))
 
 
 def is_junk_claim(sentence: str) -> bool:
@@ -106,9 +116,9 @@ def is_relevant_claim(sentence: str, *, prospect_name: str, company_name: Option
     person = ' '.join(prospect_name.lower().split())
     companies = company_tokens(company_name)
 
-    if person and person in lowered:
+    if _contains_identity(sentence, person):
         return True
-    if any(token in lowered for token in companies):
+    if any(_contains_identity(sentence, token) for token in companies):
         return True
     return False
 
@@ -125,9 +135,9 @@ def score_sentence(
     people = prospect_tokens(prospect_name)
     companies = company_tokens(company_name)
     confidence = 0.35
-    if any(token in lowered for token in people):
+    if any(_contains_identity(sentence, token) for token in people):
         confidence += 0.28
-    if any(token in lowered for token in companies):
+    if any(_contains_identity(sentence, token) for token in companies):
         confidence += 0.18
     confidence += SIGNAL_WEIGHT.get(signal_type, 0.0)
     confidence += min(max(source_score, 0.0), 1.0) * 0.12
@@ -203,6 +213,48 @@ def merge_claim_lists(groups: Iterable[list[ExtractedClaim]], *, limit: int = 12
     return merged[:limit]
 
 
+_NUMBER_AMOUNT = re.compile(
+    r'(?<![\w])\$?(-?\d[\d,]*(?:\.\d+)?)\s*(?:(thousand|million|billion|trillion|[kmbt])\b)?\s*(%|percent\b)?',
+    re.I,
+)
+_AMOUNT_SCALE = {'k': 1000, 'thousand': 1000, 'm': 1000000, 'million': 1000000,
+                 'b': 1000000000, 'billion': 1000000000, 't': 1000000000000, 'trillion': 1000000000000}
+
+
+def numeric_quantities(text: str) -> set[tuple[Decimal, bool]]:
+    """Compare written numeric amounts such as $300M and 300 million equally."""
+    return {
+        (Decimal(number.replace(',', '')) * _AMOUNT_SCALE.get((scale or '').lower(), 1), bool(percent))
+        for number, scale, percent in _NUMBER_AMOUNT.findall(text)
+    }
+
+
+def _near_duplicate_claim(first: str, second: str) -> bool:
+    # Do not collapse contradictory amounts or different dated events.
+    if numeric_quantities(first) != numeric_quantities(second):
+        return False
+    ignored = {'the', 'and', 'for', 'with', 'that', 'this', 'will', 'has', 'have', 'expects', 'expected', 'expect',
+               'plans', 'planned', 'announced', 'announces', 'would', 'its', 'close', 'closes', 'closed', 'closing',
+               'approximately', 'about', 'certain', 'set'}
+    def terms(text: str) -> set[str]:
+        # Amount equivalence was already checked above. Remove the entire
+        # amount so '$300M' and '$300 million' have the same lexical footprint.
+        text = _NUMBER_AMOUNT.sub(' ', text)
+        return {word for word in re.findall(r'[a-z]+', text.lower()) if len(word) > 2 and word not in ignored}
+    a, b = terms(first), terms(second)
+    return bool(a and b and len(a & b) / len(a | b) >= 0.70)
+
+
+def _identity_anchor(row: Mapping[str, object]) -> bool:
+    claim = str(row.get('claim', ''))
+    if re.search(r'\b(appointed|named|promoted|succeeded|succeeds|joins|joined|became)\b', claim, re.I):
+        return False
+    return row.get('signal_type') == 'leadership' or (
+        row.get('signal_type') == 'role-context' and
+        bool(re.search(r'\b(ceo|cto|chief executive|chief technology|founder)\b|\b(?:is|operates as)\s+(?:a|an|the)\s+', claim, re.I))
+    )
+
+
 def rank_evidence_for_brief(
     evidence: list[Mapping[str, object]],
     context: RunContext,
@@ -210,6 +262,8 @@ def rank_evidence_for_brief(
     limit: int = 5,
 ) -> list[dict]:
     ranked: list[tuple[float, dict]] = []
+    seen: set[str] = set()
+    offer_terms = {term for term in re.findall(r'[a-z]{4,}', f'{context.offer_name} {context.value_proposition}'.lower()) if term not in OFFER_STOP_WORDS}
     for row in evidence:
         claim = str(row.get('claim', ''))
         if not claim or is_junk_claim(claim):
@@ -218,9 +272,33 @@ def rank_evidence_for_brief(
             continue
         signal_type = str(row.get('signal_type', 'other'))
         confidence = float(row.get('confidence', 0.0))
-        if confidence < 0.55 or (signal_type == 'other' and confidence < 0.80):
+        overlap = offer_terms & set(re.findall(r'[a-z]{4,}', claim.lower()))
+        # A supported product/workflow fact may be more useful than a generic
+        # executive biography even when it is classified as 'other'.
+        other_threshold = 0.65 if len(overlap) >= 2 else 0.80
+        if confidence < 0.55 or (signal_type == 'other' and confidence < other_threshold):
             continue
-        score = confidence + SIGNAL_WEIGHT.get(signal_type, 0.0)  # type: ignore[arg-type]
+        key = ' '.join(claim.casefold().split()).rstrip('.!?')
+        if key in seen:
+            continue
+        seen.add(key)
+        # Offer overlap guides selection; it is relevance, not evidence of need.
+        overlap = offer_terms & set(re.findall(r'[a-z]{4,}', claim.lower()))
+        score = confidence + SIGNAL_WEIGHT.get(signal_type, 0.0) + min(len(overlap) * 0.15, 0.45)
+        if overlap and not _identity_anchor(row):
+            score += 1.0
         ranked.append((score, dict(row)))
     ranked.sort(key=lambda item: item[0], reverse=True)
-    return [row for _, row in ranked[:limit]]
+    selected: list[dict] = []
+    has_identity_anchor = False
+    for _, row in ranked:
+        anchor = _identity_anchor(row)
+        if anchor and has_identity_anchor:
+            continue
+        if any(_near_duplicate_claim(str(row['claim']), str(previous['claim'])) for previous in selected):
+            continue
+        selected.append(row)
+        has_identity_anchor = has_identity_anchor or anchor
+        if len(selected) >= limit:
+            break
+    return selected

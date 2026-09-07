@@ -61,10 +61,25 @@ class BriefCitation(BaseModel):
     signal_type: SignalType
 
 
+class ConversationAngle(BaseModel):
+    evidence_id: str = Field(min_length=1)
+    why_it_matters: str = Field(min_length=10, max_length=400)
+    question: str = Field(min_length=10, max_length=300)
+
+    @field_validator('evidence_id', 'why_it_matters', 'question')
+    @classmethod
+    def normalize_text(cls, value: str) -> str:
+        cleaned = ' '.join(value.split())
+        if not cleaned:
+            raise ValueError('conversation angle fields cannot be blank')
+        return cleaned
+
+
 class BriefSections(BaseModel):
     summary: str
     key_signals: list[BriefCitation]
     talking_points: list[str]
+    conversation_angles: list[ConversationAngle] = Field(default_factory=list, max_length=3)
     questions_to_ask: list[str] = Field(default_factory=list)
     personalized_opener: Optional[str] = None
     objection_handling: list[str] = Field(default_factory=list)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import re
 from typing import Optional, TypedDict
 from uuid import uuid4
 
@@ -9,7 +10,7 @@ from pydantic import ValidationError
 
 from insightiq_worker.extract import rank_evidence_for_brief
 from insightiq_worker.llm import personalize_outreach_draft, polish_brief
-from insightiq_worker.models import BriefCitation, BriefSections, RunContext
+from insightiq_worker.models import BriefCitation, BriefSections, ConversationAngle, RunContext
 
 
 class StoredEvidence(TypedDict, total=False):
@@ -57,24 +58,31 @@ def _compute_urgency(evidence: list[dict]) -> tuple[float, str]:
 
     today = datetime.date.today()
     recent_window = today - datetime.timedelta(days=30)
-    recent_news = 0
-    hiring_signals = 0
-    confidence_total = 0.0
-
+    recent_events: list[dict] = []
+    event_types = {'hiring', 'funding', 'launch', 'leadership', 'partnership'}
+    seen: set[str] = set()
     for row in evidence:
-        confidence_total += float(row.get('confidence', 0.0))
-        signal_type = str(row.get('signal_type', 'other'))
-        if signal_type == 'hiring':
-            hiring_signals += 1
         observed = _parse_observed_at(row.get('observed_at'))
-        if observed and observed >= recent_window:
-            recent_news += 1
+        if str(row.get('signal_type', 'other')) not in event_types:
+            continue
+        if not observed or not recent_window <= observed <= today:
+            continue
+        if row.get('signal_type') == 'leadership' and not re.search(
+            r'\b(appointed|named|promoted|succeeded|succeeds|joins|joined|became)\b',
+            str(row.get('claim', '')), re.I,
+        ):
+            continue
+        key = ' '.join(str(row.get('claim', '')).casefold().split())
+        if key and key in seen:
+            continue
+        seen.add(key)
+        recent_events.append(row)
 
-    avg_confidence = confidence_total / len(evidence)
-    score = min(
-        1.0,
-        (recent_news * 0.25) + (hiring_signals * 0.2) + (avg_confidence * 0.35) + (min(len(evidence), 5) * 0.04),
-    )
+    if not recent_events:
+        return 0.0, 'Low'
+    avg_confidence = sum(float(row.get('confidence', 0.0)) for row in recent_events) / len(recent_events)
+    hiring_signals = sum(row.get('signal_type') == 'hiring' for row in recent_events)
+    score = min(1.0, len(recent_events) * 0.25 + hiring_signals * 0.15 + avg_confidence * 0.2)
     if score >= 0.65:
         label = 'High urgency'
     elif score >= 0.35:
@@ -91,17 +99,54 @@ def _signal_questions(context: RunContext, evidence: list[dict]) -> list[str]:
     types = {str(row.get('signal_type', 'other')) for row in evidence}
 
     if 'leadership' in types or 'role-context' in types:
-        questions.append(f'{first}, how are you prioritizing operational scale in your current role at {company}?')
+        questions.append(f'{first}, which priorities in your role at {company} should guide this conversation?')
     if 'hiring' in types:
-        questions.append(f'What outcomes are you expecting from the hiring motion underway at {company}?')
+        questions.append(f'Is the hiring described in these sources still active at {company}, and what outcomes matter most?')
     if 'launch' in types or 'partnership' in types:
-        questions.append(f'Which recent go-to-market moves at {company} are creating the most pressure on your team?')
+        questions.append(f'Are the cited launches or partnerships relevant to your team’s current priorities at {company}?')
     if 'funding' in types:
-        questions.append(f'How is {company} translating recent funding into execution priorities this quarter?')
+        questions.append(f'Does the funding described in these sources affect current priorities at {company}?')
 
     questions.append(f'Where would {context.offer_name} need to prove value fastest to be worth your time?')
     questions.append(f'What current workflow would {context.offer_name} need to improve to earn a deeper evaluation?')
     return questions[:4]
+
+
+def _conversation_angles(context: RunContext, citations: list[BriefCitation]) -> list[ConversationAngle]:
+    """Turn a cited signal into a conditional fit hypothesis, never a buyer fact."""
+    offer = context.offer_name
+    by_type = {
+        'hiring': (
+            f'If the cited hiring changes a workflow that {offer} supports, there may be a fit to explore.',
+            f'Is this hiring changing any workflows relevant to {offer}?',
+        ),
+        'funding': (
+            f'If the cited funding supports an initiative related to {offer}, it could be worth validating the priority.',
+            f'Which priorities, if any, connect this funding to the outcome behind {offer}?',
+        ),
+        'launch': (
+            f'If the cited launch creates work related to {offer}, there may be a useful fit; confirm the impact first.',
+            f'What, if anything, does this launch change about how your team approaches the area {offer} supports?',
+        ),
+        'partnership': (
+            f'If the cited partnership affects work related to {offer}, there could be an opportunity to help.',
+            f'Does this partnership change any goals or workflows relevant to {offer}?',
+        ),
+        'leadership': (
+            f'If this role owns the outcome behind {offer}, the prospect may help validate fit; the title alone does not establish that.',
+            f'Does the outcome behind {offer} fall within your remit, or does another team own it?',
+        ),
+    }
+    fallback = (
+        f'If this public context connects to an active priority related to {offer}, there may be a fit worth exploring.',
+        f'Is this context relevant to any current work that {offer} would need to support?',
+    )
+    return [
+        ConversationAngle(evidence_id=citation.evidence_id,
+                          why_it_matters=by_type.get(citation.signal_type, fallback)[0],
+                          question=by_type.get(citation.signal_type, fallback)[1])
+        for citation in citations[:3]
+    ]
 
 
 def assemble_sections(state: BriefState) -> BriefState:
@@ -142,19 +187,20 @@ def assemble_sections(state: BriefState) -> BriefState:
         for item in ranked
     ]
     lead = str(ranked[0]['claim'])
-    offer_outcome, vague_offer_context = _buyer_outcome(context)
+    _, vague_offer_context = _buyer_outcome(context)
     use_case = 'meeting' if context.goal == 'meeting' else 'outreach'
     summary = (
-        f'{lead} This is the strongest verified reason to frame your {use_case} around {context.offer_name}. '
-        f'Test whether {offer_outcome.lower()} is a current priority before pitching.'
+        f'Prepare your {use_case} with {context.prospect_name} at {company} using '
+        f'{len(citations)} source-backed signal(s). '
+        f'Explore whether {context.offer_name} addresses a current priority; the research does not establish a buying need.'
     )
     talking_points = [
-        f"Lead with the verified signal: {row['claim']}"
+        f"Start with the source-backed signal: {row['claim']}"
         for row in ranked[:3]
     ]
     questions = _signal_questions(context, ranked)
     outreach = None
-    personalized = f'{first}, I saw that {lead.split(".")[0].lower()}. How is that shaping priorities at {company} right now?'
+    personalized = f'{first}, I came across this public signal: {lead} Is it relevant to your current priorities at {company}?'
     objections = [
         f'If timing is not a priority: ask what event would make the outcome behind {context.offer_name} urgent.',
         f'If an existing approach is in place: ask where the current workflow still creates friction before positioning {context.offer_name}.',
@@ -169,9 +215,9 @@ def assemble_sections(state: BriefState) -> BriefState:
     )
     if context.goal == 'outreach':
         outreach = personalize_outreach_draft(
-            f'Hi {first},\n\nI noticed {lead.rstrip(".").lower()}. '
-            f'I am curious whether that is creating pressure around {offer_outcome.lower()}. '
-            f'That is where {context.offer_name} may help.\n\nOpen to comparing notes for 15 minutes?',
+            f'Hi {first},\n\nI came across this public signal: {lead}\n\n'
+            f'I’m reaching out about {context.offer_name}. Is this area a current priority for your team at {company}? '
+            f'If so, would a short conversation be useful?',
             context.sender_name,
         )
 
@@ -180,16 +226,21 @@ def assemble_sections(state: BriefState) -> BriefState:
         gaps.append('Offer context lacks a measurable buyer outcome — add the problem solved and expected result for sharper messaging.')
     if len(ranked) <= THIN_EVIDENCE_CLAIM_LIMIT:
         gaps.append(
-            f'Only {len(ranked)} verified public signal(s) cleared the relevance gate — treat conclusions as preliminary.'
+            f'Only {len(ranked)} source-backed public signal(s) cleared the relevance gate — treat conclusions as preliminary.'
         )
     elif all(float(item.get('confidence', 0.0)) < THIN_EVIDENCE_CONFIDENCE for item in ranked):
         gaps.append('All cited signals are below the high-confidence threshold — verify before relying on them in outreach.')
 
-    urgency_score, urgency_label = _compute_urgency(state['evidence'])
+    urgency_score, urgency_label = _compute_urgency(ranked)
+    if urgency_score == 0.0:
+        gaps.append('No dated public event in the last 30 days supports a timing claim; confirm current priorities directly.')
+    else:
+        gaps.append('Urgency reflects recent cited public events, not confirmed buying intent.')
 
     sections = BriefSections(
         summary=summary,
         key_signals=citations,
+        conversation_angles=_conversation_angles(context, citations),
         talking_points=talking_points,
         questions_to_ask=questions if context.goal == 'meeting' else [],
         personalized_opener=personalized,
@@ -207,8 +258,9 @@ def polish_sections(state: BriefState) -> BriefState:
     sections = state['sections']
     if sections is None:
         return state
-    ranked = rank_evidence_for_brief(state['evidence'], state['context'], limit=6)
-    polished = polish_brief(state['context'], sections, ranked)
+    cited_ids = {citation.evidence_id for citation in sections.key_signals}
+    cited_evidence = [row for row in state['evidence'] if row['id'] in cited_ids]
+    polished = polish_brief(state['context'], sections, cited_evidence)
     return {**state, 'sections': polished}
 
 
@@ -225,6 +277,10 @@ def citation_gate(state: BriefState) -> BriefState:
             return {**state, 'error': f'source_url mismatch for evidence id: {citation.evidence_id}'}
         if str(stored.get('claim', '')) != citation.claim:
             return {**state, 'error': f'claim mismatch for evidence id: {citation.evidence_id}'}
+    cited_ids = {citation.evidence_id for citation in sections.key_signals}
+    for angle in sections.conversation_angles:
+        if angle.evidence_id not in cited_ids:
+            return {**state, 'error': f'uncited conversation angle evidence id: {angle.evidence_id}'}
     try:
         BriefSections.model_validate(sections.model_dump())
     except ValidationError as error:

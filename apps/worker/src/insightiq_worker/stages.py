@@ -126,7 +126,8 @@ def _prefer_source_published_at(
     if published_at is None:
         return claims
     observed_at = _format_source_published_at(published_at)
-    return [claim.model_copy(update={'observedAt': observed_at}) for claim in claims]
+    # A newly published retrospective must not turn an old event into a new one.
+    return [claim if claim.observedAt else claim.model_copy(update={'observedAt': observed_at}) for claim in claims]
 
 
 def run_context_from_row(row: tuple[Any, ...]) -> RunContext:
@@ -391,7 +392,7 @@ def process_brief_stage(connection, run_id: str, organization_id: str) -> str:
                     context.created_by_id,
                     run_id,
                     f'Brief ready for {context.prospect_name}',
-                    f'{len(stored)} cited claim(s) are ready to review.',
+                    f'{len(sections.key_signals)} cited signal(s) are ready to review.',
                 ),
             )
             user_row = connection.execute(LOAD_USER_EMAIL_SQL, (context.created_by_id,)).fetchone()
