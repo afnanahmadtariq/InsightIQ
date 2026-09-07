@@ -17,7 +17,7 @@ export function SignalTimeline({ evidence, title = 'Signal timeline' }: { eviden
       {sorted.map((item) => <li className="grid grid-cols-[24px_1fr] gap-3 py-3" key={item.id}>
         <span className="relative z-1 mt-1 size-[10px] rounded-full bg-brand ring-4 ring-white"/>
         <article>
-          <header className="mb-1.5 flex flex-wrap items-center gap-2"><span className="rounded-full bg-iq-100 px-2 py-1 text-[.64rem] font-bold tracking-[.06em] text-brand uppercase">{item.signalType}</span><strong className="text-xs text-success">{formatConfidence(item.confidence)}</strong>{item.observedAt && <time className="text-[.68rem] text-iq-500">{formatDate(item.observedAt, { year: undefined })}</time>}</header>
+          <header className="mb-1.5 flex flex-wrap items-center gap-2"><span className="rounded-full bg-iq-100 px-2 py-1 text-[.64rem] font-bold tracking-[.06em] text-brand uppercase">{item.signalType}</span><strong className="text-xs text-success">AI {formatConfidence(item.confidence)}</strong>{item.observedAt && <time className="text-[.68rem] text-iq-500">{formatDate(item.observedAt, {})}</time>}</header>
           <p className="m-0 text-sm leading-relaxed text-iq-700">{item.claim}</p>
           <a className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand" href={item.source.url} target="_blank" rel="noreferrer">{item.source.title}<ArrowUpRight size={12}/></a>
         </article>

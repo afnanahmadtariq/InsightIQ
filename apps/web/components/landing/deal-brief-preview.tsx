@@ -1,43 +1,28 @@
-import { Check, ExternalLink, Sparkles, TrendingUp } from 'lucide-react'
+'use client'
+
+import { ArrowRight, Check, MessageCircle, Sparkles, TrendingUp } from 'lucide-react'
 import Image from 'next/image'
+import { useState } from 'react'
+
+const steps = [
+  { label: 'Source claim', title: 'A team is growing', body: 'Northstar’s careers page lists enterprise sales roles in two regions.', icon: TrendingUp },
+  { label: 'Possible fit', title: 'An angle worth exploring', body: 'If this hiring is still active, consistent onboarding could be relevant to your sales training offer.', icon: Sparkles },
+  { label: 'Question to ask', title: 'Make it a conversation', body: 'Is ramping new hires a priority, and how do you measure a successful first month?', icon: MessageCircle },
+]
 
 export function DealBriefPreview() {
+  const [selected, setSelected] = useState(0)
+  const active = steps[selected]
+  const Icon = active.icon
   return <div className="relative isolate animate-[riseIn_650ms_90ms_var(--ease-fluid)_both] motion-reduce:animate-none">
     <div className="pointer-events-none absolute -inset-10 -z-10 rounded-full border border-brand-bright/15 bg-[radial-gradient(circle,rgb(89_188_248_/_10%),transparent_68%)] max-sm:-inset-5"/>
-    <div className="absolute -top-6 -right-3 z-10 flex items-center gap-1.5 rounded-xl border border-iq-200 bg-white/95 px-3 py-2 text-xs font-semibold text-brand shadow-card max-sm:right-0">
-      <Sparkles size={15}/><span>AI synthesis</span>
-    </div>
-
-    <article className="rounded-[22px] border border-iq-200 bg-white/95 p-6 shadow-panel max-sm:p-[18px]" aria-label="Example InsightIQ conversation brief">
-      <header className="flex items-center justify-between border-b border-iq-100 pb-4">
-        <div className="flex items-center gap-2.5">
-          <Image className="size-[30px] rounded-lg" src="/insightiq-logo.svg" alt="" width={30} height={30}/>
-          <p className="m-0 grid gap-px"><b className="text-xs text-iq-900">Conversation brief</b><small className="text-[.62rem] text-iq-500">Prepared 2 minutes ago</small></p>
-        </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#edf9f4] px-2.5 py-1.5 text-[.65rem] font-semibold text-success max-sm:hidden"><Check size={12}/> Evidence verified</span>
-      </header>
-
-      <section className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-5 max-sm:grid-cols-[auto_1fr]">
-        <div className="grid size-12 place-items-center rounded-[14px] bg-iq-100 text-xs font-bold text-brand">AM</div>
-        <div className="min-w-0"><h2 className="m-0 text-base text-iq-900">Alex Morgan</h2><p className="mt-1 mb-0 text-xs text-iq-500">VP of Revenue · Northstar Cloud</p></div>
-        <span className="rounded-full bg-iq-100 px-2.5 py-1.5 text-[.62rem] font-semibold text-brand max-sm:hidden">Meeting prep</span>
-      </section>
-
-      <section className="grid grid-cols-[auto_1fr_auto] gap-3 rounded-[14px] border border-iq-200 bg-iq-50 p-4">
-        <div className="grid size-[30px] place-items-center rounded-lg bg-[#e4f5ff] text-brand-bright"><TrendingUp size={16}/></div>
-        <div className="min-w-0"><span className="text-[.62rem] font-semibold tracking-wider text-brand-bright uppercase">High-intent signal</span><h3 className="my-1 text-sm text-iq-900">Scaling the enterprise sales team</h3><p className="m-0 text-xs leading-normal text-iq-600">Northstar opened 14 enterprise roles after expanding into two new regions.</p></div>
-        <a className="text-brand-bright" href="#evidence" aria-label="View source citation"><ExternalLink size={16}/></a>
-      </section>
-
-      <div className="mt-2.5 grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
-        <Angle label="Lead with">Faster ramp time for a distributed sales team.</Angle>
-        <Angle label="Ask about">Consistency across new regional teams.</Angle>
-      </div>
-      <footer className="mt-4 flex justify-between gap-2 text-[.58rem] font-medium text-iq-500"><span>7 verified signals</span><span>3 strategic angles</span><span>5 cited sources</span></footer>
+    <div className="absolute -top-5 -right-2 z-10 flex items-center gap-1.5 rounded-xl border border-iq-200 bg-white/95 px-3 py-2 text-xs font-semibold text-brand shadow-card"><Sparkles size={15}/>Try a conversation angle</div>
+    <article className="overflow-hidden rounded-[22px] border border-iq-200 bg-white shadow-panel" aria-label="Illustrative conversation angle">
+      <header className="flex items-center justify-between gap-2 border-b border-iq-100 px-6 py-5"><div className="flex items-center gap-2.5"><Image src="/insightiq-logo.svg" alt="" width={30} height={30}/><b className="text-xs text-iq-900">Conversation angle</b></div><span className="text-[.6rem] font-medium text-iq-500">Illustrative example</span></header>
+      <div className="flex items-center gap-3 px-6 pt-5 pb-4"><span className="grid size-11 place-items-center rounded-[14px] bg-iq-100 text-xs font-bold text-brand">AM</span><div><h2 className="m-0 text-base text-iq-900">Alex Morgan</h2><p className="mt-1 mb-0 text-xs text-iq-500">Northstar Cloud · Sales training offer</p></div></div>
+      <div className="grid grid-cols-3 gap-1 px-5" aria-label="Explore the example">{steps.map((step, index) => <button type="button" aria-pressed={selected === index} onClick={() => setSelected(index)} key={step.label} className={`min-h-11 rounded-t-xl border-b-2 px-2 text-[.65rem] font-semibold transition focus-visible:outline-2 focus-visible:outline-brand-bright ${selected === index ? 'border-brand-bright bg-iq-100 text-brand' : 'border-iq-100 text-iq-500 hover:text-brand'}`}><span className="mr-1 opacity-60">0{index + 1}</span>{step.label}</button>)}</div>
+      <div className="min-h-[202px] px-6 py-6" aria-live="polite"><p className="mt-0 mb-3 flex items-center gap-2 text-xs font-semibold text-brand"><Icon size={17}/>{active.title}</p><p className="m-0 text-base leading-relaxed text-iq-800">{active.body}</p></div>
+      <div className="flex items-center justify-between gap-3 bg-iq-950 px-6 py-4"><span className="inline-flex items-center gap-1.5 text-[.66rem] text-iq-200"><Check size={13} className="text-sky"/>You validate the fit</span><button type="button" onClick={() => setSelected((selected + 1) % steps.length)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky">{selected === 2 ? 'Back to the claim' : 'Follow the angle'}<ArrowRight size={14}/></button></div>
     </article>
   </div>
-}
-
-function Angle({ label, children }: { label: string; children: string }) {
-  return <div className="rounded-xl border border-iq-100 p-3"><span className="text-[.59rem] font-semibold tracking-wider text-iq-500 uppercase">{label}</span><p className="mt-1 mb-0 text-xs leading-relaxed text-iq-700">{children}</p></div>
 }

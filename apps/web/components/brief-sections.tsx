@@ -2,8 +2,9 @@
 
 import { AlertTriangle, CircleHelp, Mail, MessageSquareQuote, ShieldCheck, Sparkles, Target } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { parseBriefSections, type BriefCitation } from '../lib/brief'
+import { briefCitations, parseBriefSections, type BriefCitation } from '../lib/brief'
 import type { ResearchEvidenceItem } from '../lib/research'
+import { ConversationAngles } from './conversation-angles'
 import { CopyButton } from './ui/copy-button'
 
 function list(value: unknown) {
@@ -20,10 +21,11 @@ function CitationChip({ citation, index }: { citation: BriefCitation; index: num
     const target = document.getElementById(`evidence-${citation.evidence_id}`)
     const disclosure = document.querySelector<HTMLDetailsElement>('[data-testid="evidence-disclosure"]')
     if (disclosure && !disclosure.open) disclosure.open = true
-    target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    target?.focus({ preventScroll: true })
+    target?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
   }
 
-  return <button type="button" onClick={openEvidence} className="inline-flex max-w-full items-center gap-1 rounded-full border border-brand/20 bg-[#f4faff] px-2.5 py-1 text-[.68rem] font-semibold text-brand transition hover:border-brand/40" title={citation.claim}>
+  return <button type="button" onClick={openEvidence} className="inline-flex max-w-full items-center gap-1 rounded-full border border-brand/20 bg-[#f4faff] px-2.5 py-1 text-[.68rem] font-semibold text-brand transition hover:border-brand/40" title={citation.claim} aria-label={`View source ${index + 1}: ${citation.claim}`}>
     <span className="text-[.62rem] text-iq-500">[{index + 1}]</span>
     <span className="truncate capitalize">{citation.signal_type.replace(/-/g, ' ')}</span>
   </button>
@@ -32,7 +34,7 @@ function CitationChip({ citation, index }: { citation: BriefCitation; index: num
 export function BriefSections({
   sections,
   goal,
-  evidence = [],
+  evidence,
 }: {
   sections: unknown
   goal: 'meeting' | 'outreach'
@@ -51,7 +53,7 @@ export function BriefSections({
   const objections = list(brief.objection_handling)
   const nextSteps = list(brief.next_steps)
   const gaps = list(brief.gaps)
-  const citations = (brief.key_signals ?? []).filter((citation) => evidence.length === 0 || evidence.some((item) => item.id === citation.evidence_id))
+  const citations = briefCitations(sections, evidence)
 
   return <div className="grid gap-4">
     <section className="relative overflow-hidden rounded-[20px] bg-iq-950 p-7 text-white shadow-panel max-[620px]:p-5">
@@ -67,8 +69,10 @@ export function BriefSections({
       </div>
     </section>
 
+    <ConversationAngles angles={brief.conversation_angles ?? []} citations={citations}/>
+
     {goal === 'outreach' && outreach && <section className="rounded-[18px] border border-brand-bright/25 bg-[#f4faff] p-6 max-[620px]:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3"><SectionTitle icon={<Mail size={18}/>} title="Ready-to-send draft"/><CopyButton value={outreach} label="Copy email"/></div>
+      <div className="mb-4 flex items-center justify-between gap-3"><SectionTitle icon={<Mail size={18}/>} title="Your outreach draft"/><CopyButton value={outreach} label="Copy email"/></div>
       <p className="m-0 whitespace-pre-wrap text-sm leading-[1.75] text-iq-700">{outreach}</p>
     </section>}
 

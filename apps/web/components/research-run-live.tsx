@@ -36,9 +36,9 @@ export function ResearchRunLive({
       ? 'Ready when you start discovery.'
       : status === 'failed'
         ? 'No sources collected.'
-        : 'Searching trusted public sources.'
+        : 'Searching public sources.'
   const evidenceDescription = evidenceComplete
-    ? `${evidenceCount} claims verified.`
+    ? `${evidenceCount} claims extracted.`
     : status === 'failed'
       ? 'Waiting for a successful retry.'
       : discoveryComplete
@@ -52,7 +52,7 @@ export function ResearchRunLive({
         ? 'Waiting for a successful retry.'
         : evidenceComplete
           ? 'Turning signals into recommendations.'
-          : 'Built from verified signals.'
+          : 'Built from source-linked signals.'
 
   return <>
     <section className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-iq-200 bg-iq-200 sm:grid-cols-2 lg:grid-cols-4">

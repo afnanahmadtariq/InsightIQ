@@ -98,7 +98,7 @@ export function ResearchRunForm({ initialOffer }: { initialOffer?: OfferDefaults
 
     {error && <FormMessage tone="error" className="text-[.8rem]">{error}</FormMessage>}
     <div className="sticky bottom-4 z-2 flex items-center justify-between gap-4 rounded-2xl border border-iq-200 bg-white/94 p-3 shadow-panel backdrop-blur-xl max-[620px]:items-stretch">
-      <p className="m-0 pl-2 text-xs leading-normal text-iq-500 max-[620px]:hidden">Research starts immediately. Sources stay attached to every recommendation.</p>
+      <p className="m-0 pl-2 text-xs leading-normal text-iq-500 max-[620px]:hidden">Research starts immediately. Key signals link back to their sources.</p>
       <Button className="min-w-[220px] max-[620px]:w-full" type="submit" disabled={pending}>{pending ? 'Starting research…' : goal === 'meeting' ? 'Build meeting brief' : 'Build outreach draft'}{!pending && <ArrowRight size={18}/>}</Button>
     </div>
   </form>

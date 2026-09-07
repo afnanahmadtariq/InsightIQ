@@ -98,6 +98,8 @@ function evidenceForRun(runId) {
     confidence: 0.91,
     observedAt: new Date().toISOString(),
     source,
+  }, {
+    id: `${runId}-uncited`, claim: 'An unrelated historical company fact.', signalType: 'other', confidence: 0.99, observedAt: '2020-01-01T00:00:00.000Z', source,
   }]
 }
 
@@ -110,9 +112,12 @@ function briefSectionsForRun(run) {
     talking_points: ['Lead with the verified signal, then validate whether it maps to an active priority.'],
     questions_to_ask: ['What changed recently that made this conversation worth having?'],
     objection_handling: ['If timing is tight: agree on the event that would make this urgent.'],
+    outreach_draft: 'Hello, could we compare your current priorities with our approach?',
+    gaps: ['Current budget has not been established.'],
     next_steps: ['Confirm one priority and the right owner for a focused follow-up.'],
     urgency_score: 0.72,
     urgency_label: 'High urgency',
+    conversation_angles: [{ evidence_id: evidence.id, why_it_matters: 'This may provide context for the offer, but the prospect’s priorities need confirmation.', question: 'Which current priority would make this approach worth evaluating?' }],
     key_signals: [{
       evidence_id: evidence.id,
       claim: evidence.claim,

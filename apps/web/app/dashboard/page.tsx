@@ -7,7 +7,7 @@ import { StatusBadge } from '../../components/ui/status-badge'
 import { WorkspaceHeader, WorkspacePage, WorkspaceSection } from '../../components/workspace/workspace-page'
 import { ItemBody, ItemIcon, ItemMeta, WorkspaceList, WorkspaceListLink } from '../../components/workspace/workspace-list'
 import { UrgencyBadge } from '../../components/urgency-badge'
-import { briefUrgencyLabel } from '../../lib/brief'
+import { briefCitations, briefUrgencyLabel } from '../../lib/brief'
 import { formatDate } from '../../lib/format'
 import type { ResearchRunSummary } from '../../lib/research'
 import { authenticatedFetch, requireWorkspace } from '../../lib/server-auth'
@@ -31,13 +31,13 @@ export default async function Page() {
           <p className="mt-0 mb-4 flex items-center gap-2 text-[.7rem] font-bold tracking-[.12em] text-sky uppercase"><Sparkles size={15}/>Ready to use</p>
           <h2 className="m-0 max-w-[650px] text-[clamp(1.75rem,3vw,2.55rem)] leading-[1.08] font-medium tracking-[-.045em]">{latestReady.prospect.name}{latestReady.prospect.companyName ? ` at ${latestReady.prospect.companyName}` : ''}</h2>
           <div className="mt-3 mb-4 flex flex-wrap items-center gap-2">{briefUrgencyLabel(latestReady.brief?.sections) && <UrgencyBadge label={briefUrgencyLabel(latestReady.brief?.sections)}/>}</div>
-          <p className="mt-0 mb-6 max-w-[580px] text-sm leading-relaxed text-iq-300">{latestReady.goal === 'meeting' ? 'Meeting brief' : 'Outreach draft'} built from {latestReady._count?.evidence ?? 0} cited signal{latestReady._count?.evidence === 1 ? '' : 's'} and aligned to {latestReady.offer.name}.</p>
+          <p className="mt-0 mb-6 max-w-[580px] text-sm leading-relaxed text-iq-300">{latestReady.goal === 'meeting' ? 'Meeting brief' : 'Outreach draft'} built from {briefCitations(latestReady.brief?.sections).length} cited signal{briefCitations(latestReady.brief?.sections).length === 1 ? '' : 's'} and aligned to {latestReady.offer.name}.</p>
           <ButtonLink href={`/dashboard/briefs/${latestReady.brief!.id}`} variant="secondary" className="mt-auto">Open conversation brief<ArrowRight size={16}/></ButtonLink>
         </div>
       </article> : <article className="grid min-h-[220px] content-center justify-items-start rounded-[20px] border border-iq-200 bg-white p-7">
         <span className="mb-4 grid size-11 place-items-center rounded-xl bg-iq-100 text-brand"><Sparkles size={21}/></span>
         <h2 className="m-0 text-xl text-iq-900">Build your first conversation brief</h2>
-        <p className="mt-2 mb-5 max-w-[520px] text-sm leading-relaxed text-iq-600">Add a prospect and your offer. InsightIQ will research the account and turn verified signals into a usable plan.</p>
+        <p className="mt-2 mb-5 max-w-[520px] text-sm leading-relaxed text-iq-600">Add a prospect and your offer. InsightIQ will research the account and turn source-linked signals into a usable plan.</p>
         <ButtonLink href="/dashboard/research/new">Research a prospect<ArrowRight size={16}/></ButtonLink>
       </article>}
 
@@ -51,7 +51,7 @@ export default async function Page() {
     <WorkspaceSection title="Recent prospects" description="Open a ready brief directly, or check work still in progress." action={<Link href="/dashboard/research">View all</Link>}>
       {runs.length ? <WorkspaceList>{runs.slice(0, 4).map((run) => <WorkspaceListLink href={run.brief ? `/dashboard/briefs/${run.brief.id}` : `/dashboard/research/${run.id}`} key={run.id}>
         <ItemIcon>{run.brief ? <Sparkles size={18}/> : <Search size={18}/>}</ItemIcon><ItemBody title={<>{run.prospect.name}{run.prospect.companyName ? ` · ${run.prospect.companyName}` : ''}</>} description={<>{run.goal === 'meeting' ? 'Meeting brief' : 'Outreach draft'} · {run.offer.name}</>}/><ItemMeta><div className="flex flex-col items-end gap-1.5"><StatusBadge status={run.brief ? 'ready' : run.status}/>{run.brief && <UrgencyBadge label={briefUrgencyLabel(run.brief.sections)}/>}</div><time>{formatDate(run.requestedAt, { year: undefined })}</time></ItemMeta>
-      </WorkspaceListLink>)}</WorkspaceList> : <EmptyState icon={<Search size={20}/>} title="Your first signal starts here" body="Add a prospect and your offer context. InsightIQ will preserve the inputs and prepare a source-first research run." action={<Link href="/dashboard/research/new">Create a research run</Link>}/>} 
+      </WorkspaceListLink>)}</WorkspaceList> : <EmptyState icon={<Search size={20}/>} title="Your first signal starts here" body="Add a prospect and your offer context. InsightIQ will preserve the inputs and prepare a source-first research run." action={<Link href="/dashboard/research/new">Create a research run</Link>}/>}
     </WorkspaceSection>
   </WorkspacePage>
 }
