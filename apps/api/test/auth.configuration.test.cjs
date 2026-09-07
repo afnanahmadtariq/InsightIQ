@@ -90,12 +90,28 @@ test('social sign-in must confirm two-factor changes with a short-lived email co
   assert.match(authSource, /two-factor\/enable/)
   assert.match(authSource, /two-factor\/disable/)
   assert.match(contextSource, /securityConfirmationLifetimeMs = 10 \* 60 \* 1000/)
+  assert.match(contextSource, /HttpStatus\.TOO_MANY_REQUESTS/)
   assert.match(contextSource, /timingSafeEqual/)
   assert.match(contextSource, /kind:\s*'security-change'/)
   assert.match(controllerSource, /@Post\('security-confirmations'\)/)
   assert.match(controllerSource, /@Post\('security-confirmations\/verify'\)/)
-  assert.match(settingsSource, /Date\.now\(\) \+ 60_000/)
-  assert.match(settingsSource, /Resend in \$\{/)
+  assert.match(readFileSync(resolve(repositoryRoot, 'apps/web/lib/use-resend-cooldown.ts'), 'utf8'), /RESEND_COOLDOWN_MS = 60_000/)
+  assert.match(settingsSource, /Resend available in \{/)
+})
+
+test('email resend endpoints enforce a sixty-second rate limit without sending on page load', () => {
+  const authSource = readFileSync(resolve(repositoryRoot, 'apps/api/src/auth/auth.ts'), 'utf8')
+  const challengeSource = readFileSync(resolve(repositoryRoot, 'apps/web/components/two-factor-challenge.tsx'), 'utf8')
+  const cooldownSource = readFileSync(resolve(repositoryRoot, 'apps/web/lib/use-resend-cooldown.ts'), 'utf8')
+
+  assert.match(authSource, /'\/send-verification-email': \{ window: 60, max: 1 \}/)
+  assert.match(authSource, /'\/two-factor\/send-otp': \{ window: 60, max: 1 \}/)
+  assert.doesNotMatch(challengeSource, /useEffect/)
+  assert.doesNotMatch(challengeSource, /initialSendStarted/)
+  assert.match(challengeSource, /methods\.length > 1/)
+  assert.match(challengeSource, /Resend available in/)
+  assert.match(challengeSource, /'Send email code'/)
+  assert.match(cooldownSource, /window\.localStorage\.setItem/)
 })
 
 test('workspace deletion controls require admin confirmation and a transaction for a full wipe', () => {

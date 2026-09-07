@@ -3,10 +3,11 @@
 import { ArrowLeft, Check, Mail, ShieldCheck, ShieldOff, Smartphone, Trash2, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import type { AccountContext } from '../lib/account-context'
 import { apiRequest } from '../lib/api-client'
 import { authClient, webCallbackURL } from '../lib/auth-client'
+import { useResendCooldown } from '../lib/use-resend-cooldown'
 import { Button } from './ui/button'
 import { CopyButton } from './ui/copy-button'
 import { Field } from './ui/form-field'
@@ -18,27 +19,6 @@ type SetupStep = 'closed' | 'choose' | 'confirm' | 'connect' | 'recovery' | 'com
 
 function message(error: { message?: string } | null, fallback: string) { return error?.message || fallback }
 function classes(...values: Array<string | false>) { return values.filter(Boolean).join(' ') }
-
-function useResendCooldown() {
-  const [availableAt, setAvailableAt] = useState<number | null>(null)
-  const [secondsRemaining, setSecondsRemaining] = useState(0)
-
-  useEffect(() => {
-    if (!availableAt) return
-    function update() {
-      setSecondsRemaining(Math.max(0, Math.ceil((availableAt! - Date.now()) / 1000)))
-    }
-    update()
-    const timer = window.setInterval(update, 1_000)
-    return () => window.clearInterval(timer)
-  }, [availableAt])
-
-  return {
-    secondsRemaining,
-    start() { setAvailableAt(Date.now() + 60_000); setSecondsRemaining(60) },
-    reset() { setAvailableAt(null); setSecondsRemaining(0) },
-  }
-}
 
 function SetupFlow({ children }: { children: ReactNode }) {
   return <section className="grid w-full gap-6 rounded-[17px] border border-iq-200 bg-white p-[23px]" role="region" aria-labelledby="two-factor-setup-title">{children}</section>
@@ -75,11 +55,9 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
   const [setup, setSetup] = useState<Setup | null>(null)
   const [setupPassword, setSetupPassword] = useState('')
   const [setupConfirmationCode, setSetupConfirmationCode] = useState('')
-  const [setupConfirmationSent, setSetupConfirmationSent] = useState(false)
   const [verificationCode, setVerificationCode] = useState('')
   const [disablePassword, setDisablePassword] = useState('')
   const [disableConfirmationCode, setDisableConfirmationCode] = useState('')
-  const [disableConfirmationSent, setDisableConfirmationSent] = useState(false)
   const [recoveryPassword, setRecoveryPassword] = useState('')
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [accountDeletionConfirmation, setAccountDeletionConfirmation] = useState('')
@@ -87,24 +65,28 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const setupConfirmationCooldown = useResendCooldown()
-  const disableConfirmationCooldown = useResendCooldown()
+  const setupConfirmationCooldown = useResendCooldown({
+    storageKey: `insightiq:security-confirmation:enable:${user.id}`,
+  })
+  const disableConfirmationCooldown = useResendCooldown({
+    storageKey: `insightiq:security-confirmation:disable:${user.id}`,
+  })
   const secret = (() => { if (!setup) return ''; try { return new URL(setup.totpURI).searchParams.get('secret') || '' } catch { return '' } })()
 
   function begin(action: string) { setPending(action); setError(''); setSuccess('') }
   function passwordField(id: string, value: string, setValue: (value: string) => void) {
     return user.hasPassword ? <Field id={id} name="password" type="password" label="Current password" autoComplete="current-password" value={value} onChange={(event) => setValue(event.target.value)} required/> : null
   }
-  function openSetup() { setPlan('email'); setAddingAuthenticator(false); setStep('choose'); setSetup(null); setSetupPassword(''); setSetupConfirmationCode(''); setSetupConfirmationSent(false); setupConfirmationCooldown.reset(); setVerificationCode(''); setError(''); setSuccess('') }
-  function openAddAuthenticator() { setPlan('authenticator'); setAddingAuthenticator(true); setStep('confirm'); setSetup(null); setSetupPassword(''); setSetupConfirmationCode(''); setSetupConfirmationSent(false); setupConfirmationCooldown.reset(); setVerificationCode(''); setError(''); setSuccess('') }
-  function closeSetup() { if (pending) return; if (step === 'recovery') setRecoveryCodes([]); setStep('closed'); setSetup(null); setSetupPassword(''); setSetupConfirmationCode(''); setSetupConfirmationSent(false); setupConfirmationCooldown.reset(); setVerificationCode(''); setError('') }
+  function openSetup() { setPlan('email'); setAddingAuthenticator(false); setStep('choose'); setSetup(null); setSetupPassword(''); setSetupConfirmationCode(''); setVerificationCode(''); setError(''); setSuccess('') }
+  function openAddAuthenticator() { setPlan('authenticator'); setAddingAuthenticator(true); setStep('confirm'); setSetup(null); setSetupPassword(''); setSetupConfirmationCode(''); setVerificationCode(''); setError(''); setSuccess('') }
+  function closeSetup() { if (pending) return; if (step === 'recovery') setRecoveryCodes([]); setStep('closed'); setSetup(null); setSetupPassword(''); setSetupConfirmationCode(''); setVerificationCode(''); setError('') }
   function goBack() { if (pending) return; setError(''); if (step === 'confirm' && !addingAuthenticator) setStep('choose'); if (step === 'connect') setStep('confirm') }
 
   async function sendSetupConfirmation() {
+    if (pending || setupConfirmationCooldown.locked) return
     begin('send-enable-confirmation')
     try {
       await apiRequest('/account-context/security-confirmations', { method: 'POST', body: JSON.stringify({ action: 'enable-two-factor' }) })
-      setSetupConfirmationSent(true)
       setupConfirmationCooldown.start()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The confirmation code could not be sent.')
@@ -114,10 +96,10 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
   }
 
   async function sendDisableConfirmation() {
+    if (pending || disableConfirmationCooldown.locked) return
     begin('send-disable-confirmation')
     try {
       await apiRequest('/account-context/security-confirmations', { method: 'POST', body: JSON.stringify({ action: 'disable-two-factor' }) })
-      setDisableConfirmationSent(true)
       disableConfirmationCooldown.start()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The confirmation code could not be sent.')
@@ -129,7 +111,7 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
   async function confirmSetup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user.hasPassword) {
-      if (!setupConfirmationSent) {
+      if (!setupConfirmationCooldown.sent) {
         await sendSetupConfirmation()
         return
       }
@@ -146,8 +128,8 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
     begin(action)
     const result = await authClient.twoFactor.enable({ method: plan === 'email' ? 'otp' : 'totp', password: user.hasPassword ? setupPassword : undefined })
     if (result.error) setError(message(result.error, plan === 'email' ? 'Email two-factor authentication could not be enabled.' : 'Authenticator setup could not be started.'))
-    else if (plan === 'email') { setEnabled(true); setSetupPassword(''); setSetupConfirmationCode(''); setSetupConfirmationSent(false); setStep('complete'); router.refresh() }
-    else if (result.data?.method === 'totp') { setSetup(result.data); setSetupPassword(''); setSetupConfirmationCode(''); setSetupConfirmationSent(false); setStep('connect') }
+    else if (plan === 'email') { setEnabled(true); setSetupPassword(''); setSetupConfirmationCode(''); setupConfirmationCooldown.reset(); setStep('complete'); router.refresh() }
+    else if (result.data?.method === 'totp') { setSetup(result.data); setSetupPassword(''); setSetupConfirmationCode(''); setupConfirmationCooldown.reset(); setStep('connect') }
     else setError('Authenticator setup was not returned. Please try again.')
     setPending(null)
   }
@@ -165,7 +147,7 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
   async function disableTwoFactor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user.hasPassword) {
-      if (!disableConfirmationSent) {
+      if (!disableConfirmationCooldown.sent) {
         await sendDisableConfirmation()
         return
       }
@@ -181,7 +163,7 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
     begin('disable-2fa')
     const result = await authClient.twoFactor.disable({ password: user.hasPassword ? disablePassword : undefined })
     if (result.error) setError(message(result.error, 'Two-factor authentication could not be disabled.'))
-    else { setEnabled(false); setAuthenticatorEnabled(false); setRecoveryCodes([]); setDisablePassword(''); setDisableConfirmationCode(''); setDisableConfirmationSent(false); disableConfirmationCooldown.reset(); setSuccess('Two-factor authentication has been disabled.'); router.refresh() }
+    else { setEnabled(false); setAuthenticatorEnabled(false); setRecoveryCodes([]); setDisablePassword(''); setDisableConfirmationCode(''); disableConfirmationCooldown.reset(); setSuccess('Two-factor authentication has been disabled.'); router.refresh() }
     setPending(null)
   }
 
@@ -219,7 +201,7 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
         {success && <div className="mb-4"><FormMessage tone="success">{success}</FormMessage></div>}
         {!enabled ? <div className="flex flex-wrap items-center justify-between gap-4 rounded-[14px] border border-iq-200 bg-iq-50/60 p-5"><div><h3 className="m-0 text-[.95rem] text-iq-900">Protect this account</h3><p className="mt-1 mb-0 max-w-[520px] text-[.8rem] leading-[1.55] text-iq-600">Set up email security codes or an authenticator app as separate verification methods.</p></div><Button type="button" onClick={openSetup}>Enable 2FA</Button></div> : <div className="grid gap-4">
           <dl className="m-0 grid divide-y divide-iq-100 rounded-[14px] border border-iq-200"><div className="flex items-center justify-between gap-5 px-4 py-3.5"><div><dt className="text-[.84rem] font-semibold text-iq-900">Email security code</dt><dd className="mt-1 text-[.75rem] text-iq-500">Sent to {user.email} when it is needed.</dd></div><span className="text-[.74rem] font-semibold text-brand">Active</span></div><div className="flex items-center justify-between gap-5 px-4 py-3.5"><div><dt className="text-[.84rem] font-semibold text-iq-900">Authenticator app</dt><dd className="mt-1 text-[.75rem] text-iq-500">{authenticatorEnabled ? 'Verified and ready for offline codes.' : 'Not set up yet.'}</dd></div>{authenticatorEnabled ? <span className="text-[.74rem] font-semibold text-brand">Active</span> : <Button type="button" variant="secondary" size="xs" onClick={openAddAuthenticator}>Add app</Button>}</div></dl>
-          <div className="flex flex-wrap items-start justify-between gap-4 border-t border-iq-100 pt-4"><div><h3 className="m-0 text-[.9rem] text-iq-900">Sign-in protection</h3><p className="mt-1 mb-0 text-[.76rem] leading-[1.5] text-iq-500">Turning this off removes the additional verification step.</p></div><form onSubmit={disableTwoFactor} className="grid min-w-[260px] gap-2">{user.hasPassword ? <label className="grid gap-1 text-[.7rem] font-medium text-iq-600">Current password<input type="password" name="password" autoComplete="current-password" value={disablePassword} onChange={(event) => setDisablePassword(event.target.value)} className="h-9 rounded-control border border-iq-200 px-3 text-[.8rem] text-iq-900 outline-none focus:border-brand" required/></label> : disableConfirmationSent ? <div className="grid gap-2"><Field id="disable-two-factor-confirmation" name="confirmationCode" label="Email confirmation code" inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" value={disableConfirmationCode} onChange={(event) => setDisableConfirmationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required/><div className="flex items-center justify-between gap-3"><span className="text-[.7rem] text-iq-500">Code sent to {user.email}</span><Button type="button" variant="ghost" size="xs" onClick={sendDisableConfirmation} disabled={pending !== null || disableConfirmationCooldown.secondsRemaining > 0}>{disableConfirmationCooldown.secondsRemaining > 0 ? `Resend in ${disableConfirmationCooldown.secondsRemaining}s` : 'Resend code'}</Button></div></div> : <p className="m-0 text-[.75rem] leading-[1.5] text-iq-500">We will email a confirmation code to {user.email} before disabling 2FA.</p>}<div><Button type="submit" variant="danger" size="xs" disabled={pending !== null || (user.hasPassword && !disablePassword) || (!user.hasPassword && disableConfirmationSent && disableConfirmationCode.length !== 6)}><ShieldOff size={15}/>{pending === 'send-disable-confirmation' ? 'Sending code…' : pending === 'verify-disable-confirmation' || pending === 'disable-2fa' ? 'Disabling…' : !user.hasPassword && !disableConfirmationSent ? 'Send confirmation code' : 'Disable 2FA'}</Button></div></form></div>
+          <div className="flex flex-wrap items-start justify-between gap-4 border-t border-iq-100 pt-4"><div><h3 className="m-0 text-[.9rem] text-iq-900">Sign-in protection</h3><p className="mt-1 mb-0 text-[.76rem] leading-[1.5] text-iq-500">Turning this off removes the additional verification step.</p></div><form onSubmit={disableTwoFactor} className="grid min-w-[260px] gap-2">{user.hasPassword ? <label className="grid gap-1 text-[.7rem] font-medium text-iq-600">Current password<input type="password" name="password" autoComplete="current-password" value={disablePassword} onChange={(event) => setDisablePassword(event.target.value)} className="h-9 rounded-control border border-iq-200 px-3 text-[.8rem] text-iq-900 outline-none focus:border-brand" required/></label> : disableConfirmationCooldown.sent ? <div className="grid gap-2"><Field id="disable-two-factor-confirmation" name="confirmationCode" label="Email confirmation code" inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" value={disableConfirmationCode} onChange={(event) => setDisableConfirmationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required/><div className="flex items-center justify-between gap-3"><span className="text-[.7rem] text-iq-500">Code sent to {user.email}</span>{disableConfirmationCooldown.locked ? <span className="text-[.7rem] font-medium text-iq-500" role="status">Resend available in {disableConfirmationCooldown.secondsRemaining}s</span> : <Button type="button" variant="ghost" size="xs" onClick={sendDisableConfirmation} disabled={pending !== null}>Resend code</Button>}</div></div> : <p className="m-0 text-[.75rem] leading-[1.5] text-iq-500">We will email a confirmation code to {user.email} before disabling 2FA.</p>}<div><Button type="submit" variant="danger" size="xs" disabled={pending !== null || (!user.hasPassword && !disableConfirmationCooldown.ready) || (user.hasPassword && !disablePassword) || (!user.hasPassword && disableConfirmationCooldown.sent && disableConfirmationCode.length !== 6)}><ShieldOff size={15}/>{pending === 'send-disable-confirmation' ? 'Sending code…' : pending === 'verify-disable-confirmation' || pending === 'disable-2fa' ? 'Disabling…' : !user.hasPassword && !disableConfirmationCooldown.sent ? 'Send confirmation code' : 'Disable 2FA'}</Button></div></form></div>
           {authenticatorEnabled && <form className="flex flex-wrap items-end justify-between gap-4 border-t border-iq-100 pt-4" onSubmit={generateRecoveryCodes}><div><h3 className="m-0 text-[.9rem] text-iq-900">Recovery codes</h3><p className="mt-1 mb-0 text-[.76rem] leading-[1.5] text-iq-500">Generate replacements if your saved codes are lost or exposed.</p></div><div className="flex flex-wrap items-end gap-2">{user.hasPassword && <label className="grid gap-1 text-[.7rem] font-medium text-iq-600">Current password<input type="password" name="password" autoComplete="current-password" value={recoveryPassword} onChange={(event) => setRecoveryPassword(event.target.value)} className="h-9 rounded-control border border-iq-200 px-3 text-[.8rem] text-iq-900 outline-none focus:border-brand" required/></label>}<Button type="submit" variant="secondary" size="xs" disabled={pending !== null || (user.hasPassword && !recoveryPassword)}>{pending === 'recovery' ? 'Generating…' : 'Generate new codes'}</Button></div></form>}
         </div>}
       </div>
@@ -234,10 +216,10 @@ export function SecuritySettings({ user, accountDeletion }: { user: AccountConte
     {step !== 'closed' && <SetupFlow><FlowHeader step={step} plan={plan} onBack={step === 'confirm' && !addingAuthenticator || step === 'connect' ? goBack : undefined} onClose={closeSetup} canClose={canCloseSetup}/><Stepper step={step} plan={plan}/><div className="w-full">
       {error && <div className="mb-4"><FormMessage tone="error">{error}</FormMessage></div>}
       {step === 'choose' && <div className="grid gap-5"><p className="m-0 text-[.84rem] leading-[1.55] text-iq-600">Choose one verification method to set up. You can add the other method separately afterward.</p><div className="grid grid-cols-2 gap-3 max-[520px]:grid-cols-1" role="radiogroup" aria-label="Two-factor setup choice"><button type="button" onClick={() => setPlan('email')} role="radio" aria-checked={plan === 'email'} className={classes('grid gap-2 rounded-[14px] border p-4 text-left transition-colors', plan === 'email' ? 'border-brand bg-iq-50 shadow-[inset_0_0_0_1px_rgb(23_104_199_/_10%)]' : 'border-iq-200 bg-white hover:bg-iq-50')}><Mail size={19} className="text-brand"/><strong className="text-[.9rem] text-iq-900">Email security code</strong><span className="text-[.76rem] leading-[1.5] text-iq-500">Receive a six-digit code at your verified email.</span></button><button type="button" onClick={() => setPlan('authenticator')} role="radio" aria-checked={plan === 'authenticator'} className={classes('grid gap-2 rounded-[14px] border p-4 text-left transition-colors', plan === 'authenticator' ? 'border-brand bg-iq-50 shadow-[inset_0_0_0_1px_rgb(23_104_199_/_10%)]' : 'border-iq-200 bg-white hover:bg-iq-50')}><Smartphone size={19} className="text-brand"/><strong className="text-[.9rem] text-iq-900">Authenticator app</strong><span className="text-[.76rem] leading-[1.5] text-iq-500">Use offline codes and keep single-use recovery codes.</span></button></div><div className="flex justify-end border-t border-iq-100 pt-4"><Button type="button" onClick={() => setStep('confirm')}>Continue</Button></div></div>}
-      {step === 'confirm' && <form className="grid gap-5" onSubmit={confirmSetup}><div className="rounded-[14px] border border-iq-200 bg-iq-50/70 p-4"><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-white text-brand">{plan === 'email' ? <Mail size={17}/> : <Smartphone size={17}/>}</span><div><h3 className="m-0 text-[.92rem] text-iq-900">{plan === 'email' ? 'Email security code' : 'Authenticator app'}</h3><p className="mt-1 mb-0 text-[.78rem] leading-[1.55] text-iq-600">{plan === 'email' ? `A code will be sent to ${user.email} whenever a second factor is required.` : 'Scan a QR code and verify one authenticator code to activate this method.'}</p></div></div></div>{passwordField('two-factor-setup-password', setupPassword, setSetupPassword)}{!user.hasPassword && (setupConfirmationSent ? <div className="grid gap-2"><Field id="enable-two-factor-confirmation" name="confirmationCode" label="Email confirmation code" inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" value={setupConfirmationCode} onChange={(event) => setSetupConfirmationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required/><div className="flex items-center justify-between gap-3"><span className="text-[.72rem] text-iq-500">Code sent to {user.email}</span><Button type="button" variant="ghost" size="xs" onClick={sendSetupConfirmation} disabled={pending !== null || setupConfirmationCooldown.secondsRemaining > 0}>{setupConfirmationCooldown.secondsRemaining > 0 ? `Resend in ${setupConfirmationCooldown.secondsRemaining}s` : 'Resend code'}</Button></div></div> : <FormMessage>Because you sign in with Google or another provider, we will send a confirmation code to {user.email} before changing two-factor authentication.</FormMessage>)}<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={closeSetup} disabled={!canCloseSetup}>Cancel</Button><Button type="submit" disabled={pending !== null || (user.hasPassword && !setupPassword) || (!user.hasPassword && setupConfirmationSent && setupConfirmationCode.length !== 6)}>{pending === 'send-enable-confirmation' ? 'Sending code…' : pending === 'verify-enable-confirmation' ? 'Confirming…' : pending === 'enable-email' ? 'Activating…' : pending === 'enable-authenticator' ? 'Preparing…' : !user.hasPassword && !setupConfirmationSent ? 'Send confirmation code' : plan === 'email' ? 'Activate email codes' : 'Continue to app setup'}</Button></div></form>}
+      {step === 'confirm' && <form className="grid gap-5" onSubmit={confirmSetup}><div className="rounded-[14px] border border-iq-200 bg-iq-50/70 p-4"><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-white text-brand">{plan === 'email' ? <Mail size={17}/> : <Smartphone size={17}/>}</span><div><h3 className="m-0 text-[.92rem] text-iq-900">{plan === 'email' ? 'Email security code' : 'Authenticator app'}</h3><p className="mt-1 mb-0 text-[.78rem] leading-[1.55] text-iq-600">{plan === 'email' ? `A code will be sent to ${user.email} whenever a second factor is required.` : 'Scan a QR code and verify one authenticator code to activate this method.'}</p></div></div></div>{passwordField('two-factor-setup-password', setupPassword, setSetupPassword)}{!user.hasPassword && (setupConfirmationCooldown.sent ? <div className="grid gap-2"><Field id="enable-two-factor-confirmation" name="confirmationCode" label="Email confirmation code" inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" value={setupConfirmationCode} onChange={(event) => setSetupConfirmationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required/><div className="flex items-center justify-between gap-3"><span className="text-[.72rem] text-iq-500">Code sent to {user.email}</span>{setupConfirmationCooldown.locked ? <span className="text-[.7rem] font-medium text-iq-500" role="status">Resend available in {setupConfirmationCooldown.secondsRemaining}s</span> : <Button type="button" variant="ghost" size="xs" onClick={sendSetupConfirmation} disabled={pending !== null}>Resend code</Button>}</div></div> : <FormMessage>Because you sign in with Google or another provider, we will send a confirmation code to {user.email} before changing two-factor authentication.</FormMessage>)}<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={closeSetup} disabled={!canCloseSetup}>Cancel</Button><Button type="submit" disabled={pending !== null || (!user.hasPassword && !setupConfirmationCooldown.ready) || (user.hasPassword && !setupPassword) || (!user.hasPassword && setupConfirmationCooldown.sent && setupConfirmationCode.length !== 6)}>{pending === 'send-enable-confirmation' ? 'Sending code…' : pending === 'verify-enable-confirmation' ? 'Confirming…' : pending === 'enable-email' ? 'Activating…' : pending === 'enable-authenticator' ? 'Preparing…' : !user.hasPassword && !setupConfirmationCooldown.sent ? 'Send confirmation code' : plan === 'email' ? 'Activate email codes' : 'Continue to app setup'}</Button></div></form>}
       {step === 'connect' && setup && <div className="grid gap-5"><div className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 max-[520px]:grid-cols-1"><div className="w-fit rounded-[14px] border border-iq-200 bg-white p-3"><QRCodeSVG value={setup.totpURI} size={174} level="M" marginSize={1}/></div><div className="grid content-start gap-3"><div><h3 className="m-0 text-[.96rem] text-iq-900">Scan this code in your app</h3><p className="mt-1.5 mb-0 text-[.8rem] leading-[1.55] text-iq-600">Use any TOTP-compatible authenticator, then enter its current six-digit code below.</p></div>{secret && <div className="flex items-center gap-2 rounded-xl border border-iq-200 bg-iq-50 p-2.5"><code className="min-w-0 flex-1 break-all text-[.76rem] font-semibold tracking-[.06em] text-iq-900">{secret}</code><CopyButton value={secret}/></div>}</div></div><form className="grid gap-4" onSubmit={verifyAuthenticator}><Field id="authenticator-code" name="code" label="Six-digit authenticator code" inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required/><div className="flex justify-end"><Button type="submit" disabled={pending !== null || verificationCode.length !== 6}>{pending === 'verify-authenticator' ? 'Verifying…' : 'Verify and activate'}</Button></div></form></div>}
       {step === 'recovery' && <div className="grid gap-5"><div><h3 className="m-0 text-[.96rem] text-iq-900">Keep these somewhere safe</h3><p className="mt-1.5 mb-0 text-[.8rem] leading-[1.55] text-iq-600">Each recovery code works once. They are the fallback if you lose access to your authenticator app.</p></div><div className="grid grid-cols-2 gap-2 max-[520px]:grid-cols-1">{recoveryCodes.map((code) => <code key={code} className="rounded-lg border border-iq-200 bg-iq-50 px-3 py-2 text-center text-[.82rem] font-semibold text-iq-900">{code}</code>)}</div><div className="flex flex-wrap justify-between gap-3"><CopyButton value={recoveryCodes.join('\n')} label="Copy all codes"/><Button type="button" onClick={closeSetup}><Check size={16}/>I saved these codes</Button></div></div>}
-      {step === 'complete' && <div className="grid justify-items-center gap-5 py-3 text-center"><span className="grid size-12 place-items-center rounded-full bg-iq-100 text-brand"><Check size={23}/></span><div><h3 className="m-0 text-[1rem] text-iq-900">Email security codes are active</h3><p className="mt-2 mb-0 max-w-[420px] text-[.8rem] leading-[1.55] text-iq-600">We will automatically send a code to {user.email} whenever sign-in needs a second factor.</p></div><Button type="button" onClick={closeSetup}>Done</Button></div>}
+      {step === 'complete' && <div className="grid justify-items-center gap-5 py-3 text-center"><span className="grid size-12 place-items-center rounded-full bg-iq-100 text-brand"><Check size={23}/></span><div><h3 className="m-0 text-[1rem] text-iq-900">Email security codes are active</h3><p className="mt-2 mb-0 max-w-[420px] text-[.8rem] leading-[1.55] text-iq-600">When sign-in needs a second factor, you can request a code at {user.email}.</p></div><Button type="button" onClick={closeSetup}>Done</Button></div>}
     </div></SetupFlow>}
   </div>
 }

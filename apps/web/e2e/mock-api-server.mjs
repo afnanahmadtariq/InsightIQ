@@ -246,6 +246,9 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST' && pathname === '/api/auth/sign-out') {
         return json(res, 200, { success: true }, { 'Set-Cookie': `${SESSION_COOKIE}=; Path=/; Max-Age=0` })
       }
+      if (req.method === 'POST' && pathname === '/api/auth/send-verification-email') {
+        return json(res, 200, { status: true })
+      }
       return json(res, 404, { message: `Unhandled auth route ${pathname}` })
     }
 

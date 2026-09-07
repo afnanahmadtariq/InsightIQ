@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { authClient, webCallbackURL } from '../lib/auth-client'
+import { useResendCooldown } from '../lib/use-resend-cooldown'
 import { Button } from './ui/button'
 import { Field } from './ui/form-field'
 import { FormMessage } from './ui/form-message'
@@ -38,11 +39,38 @@ export function ResetPasswordForm({ token }: { token: string }) {
 }
 
 export function VerifyEmailActions({ email }: { email: string }) {
-  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle'); const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
+  const resendCooldown = useResendCooldown({
+    startLocked: true,
+    storageKey: `insightiq:email-verification:${email.trim().toLowerCase()}`,
+  })
+
   async function resend() {
-    setState('sending'); setError('')
+    if (!email || pending || resendCooldown.locked) return
+    setPending(true)
+    setError('')
     const result = await authClient.sendVerificationEmail({ email, callbackURL: webCallbackURL('/auth/continue') })
-    if (result.error) { setError(result.error.message || 'Could not resend verification'); setState('idle') } else setState('sent')
+    if (result.error) {
+      setError(result.error.message || 'Could not resend verification')
+      setPending(false)
+      return
+    }
+    setSent(true)
+    resendCooldown.start()
+    setPending(false)
   }
-  return <div className="grid gap-4"><FormMessage>Open the verification link sent to <strong>{email || 'your email address'}</strong>. It expires in one hour.</FormMessage>{state === 'sent' && <FormMessage tone="success">A new verification email has been sent.</FormMessage>}{error && <FormMessage tone="error">{error}</FormMessage>}<Button className="w-full" type="button" variant="secondary" onClick={resend} disabled={!email || state === 'sending'}>{state === 'sending' ? 'Sending…' : 'Resend verification email'}</Button><ReturnToSignIn/></div>
+
+  return <div className="grid gap-4">
+    <FormMessage>Open the verification link sent to <strong>{email || 'your email address'}</strong>. It expires in one hour.</FormMessage>
+    {sent && <FormMessage tone="success">A new verification email has been sent.</FormMessage>}
+    {error && <FormMessage tone="error">{error}</FormMessage>}
+    {pending
+      ? <Button className="w-full" type="button" variant="secondary" disabled>Sending…</Button>
+      : resendCooldown.locked
+        ? <p className="m-0 text-center text-[.78rem] font-medium text-iq-500" role="status">{resendCooldown.ready ? `Resend available in ${resendCooldown.secondsRemaining}s` : 'Checking email status…'}</p>
+        : <Button className="w-full" type="button" variant="secondary" onClick={resend} disabled={!email}>Resend verification email</Button>}
+    <ReturnToSignIn/>
+  </div>
 }

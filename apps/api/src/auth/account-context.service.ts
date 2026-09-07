@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@insightiq/db'
 import type { UserSession } from '@thallesp/nestjs-better-auth'
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
@@ -42,7 +42,7 @@ export class AccountContextService {
     const identifier = securityConfirmationIdentifier(session.session.id, action)
     const existing = await db.verification.findFirst({ where: { identifier }, orderBy: { createdAt: 'desc' } })
     if (existing && Date.now() - existing.createdAt.getTime() < 60_000) {
-      throw new BadRequestException('Wait one minute before requesting another confirmation code')
+      throw new HttpException('Wait one minute before requesting another confirmation code', HttpStatus.TOO_MANY_REQUESTS)
     }
 
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0')

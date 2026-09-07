@@ -26,6 +26,13 @@ export const auth = betterAuth({
     provider: 'postgresql',
     transaction: true,
   }),
+  rateLimit: {
+    enabled: true,
+    customRules: {
+      '/send-verification-email': { window: 60, max: 1 },
+      '/two-factor/send-otp': { window: 60, max: 1 },
+    },
+  },
   trustedOrigins,
   emailAndPassword: {
     enabled: true,
